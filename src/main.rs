@@ -6,6 +6,7 @@ use tracing::{debug, info, Level};
 use tracing_subscriber::FmtSubscriber;
 
 use theman::adapters::command::RealCommandExecutor;
+use theman::adapters::dryrun::{DryRunCommandExecutor, DryRunFileSystem};
 use theman::adapters::filesystem::RealFileSystem;
 use theman::adapters::template::TeraAdapter;
 use theman::core::orchestrator::Orchestrator;
@@ -33,6 +34,10 @@ enum Commands {
     Load {
         /// The name of the profile to load (e.g., "nord")
         profile: String,
+
+        /// Simulate actions without writing files or running commands
+        #[arg(long)]
+        dry_run: bool,
     },
 
     /// Show current status
@@ -68,17 +73,27 @@ fn main() -> Result<()> {
     // But verify.
     debug!("Config dir: {:?}", config_dir);
 
-    // 3. Instantiate Components
-    let fs = RealFileSystem;
-    let tera = TeraAdapter::new();
-    let cmd = RealCommandExecutor;
-
-    let orchestrator = Orchestrator::new(fs, tera, cmd, config_dir);
-
-    // 4. Run Command
+    // 3. Run Command
     match cli.command {
-        Commands::Load { profile } => {
-            orchestrator.load_profile(&profile)?;
+        Commands::Load { profile, dry_run } => {
+            if dry_run {
+                info!("Running in dry-run mode");
+                let orchestrator = Orchestrator::new(
+                    DryRunFileSystem,
+                    TeraAdapter::new(),
+                    DryRunCommandExecutor,
+                    config_dir,
+                );
+                orchestrator.load_profile(&profile)?;
+            } else {
+                let orchestrator = Orchestrator::new(
+                    RealFileSystem,
+                    TeraAdapter::new(),
+                    RealCommandExecutor,
+                    config_dir,
+                );
+                orchestrator.load_profile(&profile)?;
+            }
         }
         Commands::Status => {
             info!("Status command not implemented yet");
