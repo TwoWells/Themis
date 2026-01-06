@@ -1,0 +1,20 @@
+# Rust / Cargo
+/target/
+/Cargo.lock
+
+# TheMan Generated Files
+*_theman.*
+.theman.*
+
+# Editor / IDE
+.vscode/
+.idea/
+*.swp
+
+# Gemini Agent
+GEMINI.md
+
+
+# Added by cargo
+
+/target

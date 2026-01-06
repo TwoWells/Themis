@@ -1,0 +1,34 @@
+# Kitty Integration
+
+## 1. Mechanism
+Kitty supports reloading configuration on the fly. It does not natively support "themes" in the sense of swapping files without restarting, EXCEPT via:
+1.  **Live Reload:** It monitors `kitty.conf` and included files for changes.
+2.  **Socket:** `kitten @ set-colors` (requires `allow_remote_control`).
+
+## 2. TheMan's Approach
+We use the **Include Pattern** combined with **Live Reload**.
+We generate a file containing *only* the color/font variables, which `kitty.conf` includes. When TheMan updates this file, Kitty detects the file change and re-renders the terminal instantly. No signals needed.
+
+## 3. User Setup
+**One-time:** Add this line to `~/.config/kitty/kitty.conf`:
+```ini
+include .theman.conf
+```
+
+## 4. Equivalent Configuration
+If this wasn't built-in, a user would define it in `theman.yaml` like this:
+
+```yaml
+enroll:
+  kitty:
+    type: template
+    input: "~/.config/theman/templates/kitty.conf.j2"
+    output: "~/.config/kitty/.theman.conf"
+    # No reload command needed; Kitty watches the file.
+```
+
+## 5. Template Variables Used
+*   `bg`, `fg`
+*   `color0`..`color15`
+*   `font_family` (optional)
+*   `opacity` (optional)
