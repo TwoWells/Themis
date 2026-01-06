@@ -18,6 +18,20 @@ mod tests {
         (fs, orchestrator)
     }
 
+    fn setup_with_executor() -> (
+        MockFileSystem,
+        MockCommandExecutor,
+        Orchestrator<MockFileSystem, MockTemplateRenderer, MockCommandExecutor>,
+    ) {
+        let fs = MockFileSystem::new();
+        let tera = MockTemplateRenderer::default();
+        let cmd = MockCommandExecutor::default();
+        let config_dir = PathBuf::from("/config");
+
+        let orchestrator = Orchestrator::new(fs.clone(), tera, cmd.clone(), config_dir);
+        (fs, cmd, orchestrator)
+    }
+
     #[test]
     fn test_profile_inheritance() {
         let (fs, orchestrator) = setup();
@@ -81,5 +95,160 @@ mod tests {
             .read_to_string(&PathBuf::from("/config/out.conf"))
             .unwrap();
         assert_eq!(output, "mode=dark bg=#2E3440 font=Sans");
+    }
+
+    #[test]
+    fn test_circular_inheritance_detected() {
+        let (fs, orchestrator) = setup();
+
+        // theman.yaml
+        fs.add_file(
+            "/config/theman.yaml",
+            r##"
+            current_profile: a
+            enroll: {}
+        "##,
+        );
+
+        // profiles/a.yaml extends b
+        fs.add_file(
+            "/config/profiles/a.yaml",
+            r##"
+            metadata:
+              name: a
+            extends: b
+            vars: {}
+        "##,
+        );
+
+        // profiles/b.yaml extends a (circular!)
+        fs.add_file(
+            "/config/profiles/b.yaml",
+            r##"
+            metadata:
+              name: b
+            extends: a
+            vars: {}
+        "##,
+        );
+
+        let result = orchestrator.load_profile("a");
+        assert!(result.is_err());
+        let err = result.unwrap_err().to_string();
+        assert!(
+            err.contains("Circular profile inheritance detected"),
+            "Expected circular inheritance error, got: {}",
+            err
+        );
+    }
+
+    #[test]
+    fn test_self_referential_inheritance_detected() {
+        let (fs, orchestrator) = setup();
+
+        fs.add_file(
+            "/config/theman.yaml",
+            r##"
+            current_profile: self_ref
+            enroll: {}
+        "##,
+        );
+
+        // Profile extends itself
+        fs.add_file(
+            "/config/profiles/self_ref.yaml",
+            r##"
+            metadata:
+              name: self_ref
+            extends: self_ref
+            vars: {}
+        "##,
+        );
+
+        let result = orchestrator.load_profile("self_ref");
+        assert!(result.is_err());
+        let err = result.unwrap_err().to_string();
+        assert!(
+            err.contains("Circular profile inheritance detected"),
+            "Expected circular inheritance error, got: {}",
+            err
+        );
+    }
+
+    #[test]
+    fn test_reload_signal_sends_pkill() {
+        let (fs, cmd, orchestrator) = setup_with_executor();
+
+        fs.add_file(
+            "/config/theman.yaml",
+            r##"
+            enroll:
+              waybar:
+                type: template
+                input: /config/template.j2
+                output: /config/out.conf
+                reload_signal: SIGUSR2
+        "##,
+        );
+
+        fs.add_file(
+            "/config/profiles/test.yaml",
+            r##"
+            metadata:
+              name: test
+            vars:
+              color: "#000000"
+        "##,
+        );
+
+        fs.add_file("/config/template.j2", "color={{ color }}");
+
+        let result = orchestrator.load_profile("test");
+        assert!(result.is_ok(), "Failed: {:?}", result.err());
+
+        let executed = cmd.executed.lock().unwrap();
+        assert!(
+            executed.iter().any(|c| c == "pkill -USR2 waybar"),
+            "Expected pkill command, got: {:?}",
+            *executed
+        );
+    }
+
+    #[test]
+    fn test_reload_signal_without_sig_prefix() {
+        let (fs, cmd, orchestrator) = setup_with_executor();
+
+        fs.add_file(
+            "/config/theman.yaml",
+            r##"
+            enroll:
+              kitty:
+                type: template
+                input: /config/template.j2
+                output: /config/out.conf
+                reload_signal: USR1
+        "##,
+        );
+
+        fs.add_file(
+            "/config/profiles/test.yaml",
+            r##"
+            metadata:
+              name: test
+            vars: {}
+        "##,
+        );
+
+        fs.add_file("/config/template.j2", "test");
+
+        let result = orchestrator.load_profile("test");
+        assert!(result.is_ok(), "Failed: {:?}", result.err());
+
+        let executed = cmd.executed.lock().unwrap();
+        assert!(
+            executed.iter().any(|c| c == "pkill -USR1 kitty"),
+            "Expected pkill command, got: {:?}",
+            *executed
+        );
     }
 }

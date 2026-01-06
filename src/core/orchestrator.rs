@@ -1,6 +1,6 @@
 use anyhow::{bail, Context, Result};
 use serde_json::Value;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use tracing::{debug, info, warn};
 
@@ -81,13 +81,30 @@ where
     }
 
     fn resolve_profile_vars(&self, profile_name: &str) -> Result<HashMap<String, Value>> {
+        let mut visited = HashSet::new();
+        self.resolve_profile_vars_inner(profile_name, &mut visited)
+    }
+
+    fn resolve_profile_vars_inner(
+        &self,
+        profile_name: &str,
+        visited: &mut HashSet<String>,
+    ) -> Result<HashMap<String, Value>> {
+        // Cycle detection
+        if !visited.insert(profile_name.to_string()) {
+            bail!(
+                "Circular profile inheritance detected: '{}' appears twice in the inheritance chain",
+                profile_name
+            );
+        }
+
         let profile = self.load_profile_file(profile_name)?;
         let mut vars = HashMap::new();
 
         // 1. If extends, load parent first (Recursive)
         if let Some(parent_name) = &profile.extends {
             debug!("Inheriting from parent profile: {}", parent_name);
-            let parent_vars = self.resolve_profile_vars(parent_name)?;
+            let parent_vars = self.resolve_profile_vars_inner(parent_name, visited)?;
             vars.extend(parent_vars);
         }
 
@@ -120,7 +137,7 @@ where
                 input,
                 output,
                 reload_cmd,
-                reload_signal: _reload_signal,
+                reload_signal,
             } => {
                 // 1. Resolve paths (expand ~)
                 let input_path = shellexpand::tilde(input);
@@ -148,7 +165,9 @@ where
                 if let Some(cmd) = reload_cmd {
                     self.command_executor.run_command(cmd)?;
                 }
-                // TODO: Handle reload_signal via pkill/killall
+                if let Some(signal) = reload_signal {
+                    self.send_signal(signal, context)?;
+                }
             }
 
             Integration::Symlink {
@@ -210,6 +229,30 @@ where
                     &env_vars,
                 )?;
             }
+        }
+        Ok(())
+    }
+
+    /// Send a signal to a process by app name using pkill.
+    /// Signal should be like "SIGUSR2", "SIGHUP", etc.
+    fn send_signal(&self, signal: &str, context: &HashMap<String, Value>) -> Result<()> {
+        let app_name = context
+            .get("app_name")
+            .and_then(|v| v.as_str())
+            .context("app_name not found in context")?;
+
+        // Normalize signal: strip "SIG" prefix if present for pkill compatibility
+        let signal_name = signal.strip_prefix("SIG").unwrap_or(signal);
+        let cmd = format!("pkill -{} {}", signal_name, app_name);
+        debug!("Sending signal: {}", cmd);
+
+        // pkill returns non-zero if no process matched, which isn't necessarily an error
+        // (the app might not be running). We log but don't fail.
+        if let Err(e) = self.command_executor.run_command(&cmd) {
+            debug!(
+                "Signal command returned error (process may not be running): {}",
+                e
+            );
         }
         Ok(())
     }
