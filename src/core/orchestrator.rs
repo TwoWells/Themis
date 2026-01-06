@@ -210,12 +210,39 @@ where
                 // Prepare Env: Prefix everything with THEMAN_
                 let mut env_vars = HashMap::new();
                 for (k, v) in context {
-                    // Flatten Value to String for Env
-                    if let Value::String(s) = v {
-                        env_vars.insert(format!("THEMAN_{}", k.to_uppercase()), s.clone());
-                    } else {
-                        // Best effort stringify for numbers/bools
-                        env_vars.insert(format!("THEMAN_{}", k.to_uppercase()), v.to_string());
+                    let env_key = format!("THEMAN_{}", k.to_uppercase());
+                    match v {
+                        Value::String(s) => {
+                            env_vars.insert(env_key, s.clone());
+                        }
+                        Value::Number(n) => {
+                            env_vars.insert(env_key, n.to_string());
+                        }
+                        Value::Bool(b) => {
+                            env_vars.insert(env_key, b.to_string());
+                        }
+                        Value::Null => {
+                            debug!("Skipping null value for env var: {}", k);
+                        }
+                        Value::Array(arr) => {
+                            // Join array elements with colon (Unix convention)
+                            let joined: Vec<String> = arr
+                                .iter()
+                                .filter_map(|v| match v {
+                                    Value::String(s) => Some(s.clone()),
+                                    Value::Number(n) => Some(n.to_string()),
+                                    Value::Bool(b) => Some(b.to_string()),
+                                    _ => None, // Skip nested arrays/objects/nulls
+                                })
+                                .collect();
+                            env_vars.insert(env_key, joined.join(":"));
+                        }
+                        Value::Object(_) => {
+                            warn!(
+                                "Skipping object value for env var '{}': objects cannot be passed as environment variables",
+                                k
+                            );
+                        }
                     }
                 }
                 // Add explicit user env overrides

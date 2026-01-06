@@ -88,6 +88,7 @@ impl TemplateRenderer for MockTemplateRenderer {
 #[derive(Clone, Default)]
 pub struct MockCommandExecutor {
     pub executed: Arc<Mutex<Vec<String>>>,
+    pub script_env: Arc<Mutex<HashMap<String, String>>>,
 }
 
 impl CommandExecutor for MockCommandExecutor {
@@ -100,10 +101,12 @@ impl CommandExecutor for MockCommandExecutor {
         &self,
         path: &Path,
         args: &[String],
-        _env: &HashMap<String, String>,
+        env: &HashMap<String, String>,
     ) -> Result<()> {
         let cmd = format!("{} {}", path.display(), args.join(" "));
         self.executed.lock().unwrap().push(cmd);
+        // Capture env vars for testing
+        self.script_env.lock().unwrap().extend(env.clone());
         Ok(())
     }
 }

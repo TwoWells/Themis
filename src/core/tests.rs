@@ -251,4 +251,51 @@ mod tests {
             *executed
         );
     }
+
+    #[test]
+    fn test_script_env_arrays_are_colon_delimited() {
+        let (fs, cmd, orchestrator) = setup_with_executor();
+
+        fs.add_file(
+            "/config/theman.yaml",
+            r##"
+            enroll:
+              myapp:
+                type: script
+                path: /usr/bin/theme-script
+        "##,
+        );
+
+        fs.add_file(
+            "/config/profiles/test.yaml",
+            r##"
+            metadata:
+              name: test
+            vars:
+              colors: ["#111111", "#222222", "#333333"]
+              single: "value"
+              number: 42
+        "##,
+        );
+
+        let result = orchestrator.load_profile("test");
+        assert!(result.is_ok(), "Failed: {:?}", result.err());
+
+        let env = cmd.script_env.lock().unwrap();
+        assert_eq!(
+            env.get("THEMAN_COLORS"),
+            Some(&"#111111:#222222:#333333".to_string()),
+            "Array should be colon-delimited"
+        );
+        assert_eq!(
+            env.get("THEMAN_SINGLE"),
+            Some(&"value".to_string()),
+            "String should pass through"
+        );
+        assert_eq!(
+            env.get("THEMAN_NUMBER"),
+            Some(&"42".to_string()),
+            "Number should stringify"
+        );
+    }
 }
