@@ -1,0 +1,95 @@
+#![allow(dead_code)] // Mocks might have unused methods in some tests
+
+use crate::core::traits::{FileSystem, CommandExecutor, TemplateRenderer};
+use anyhow::{Result, bail};
+use std::collections::HashMap;
+use std::path::{Path, PathBuf};
+use std::sync::{Arc, Mutex};
+use serde_json::Value;
+
+// --- Mock File System ---
+#[derive(Clone, Default)]
+pub struct MockFileSystem {
+    pub files: Arc<Mutex<HashMap<PathBuf, String>>>,
+    pub symlinks: Arc<Mutex<HashMap<PathBuf, PathBuf>>>,
+}
+
+impl MockFileSystem {
+    pub fn new() -> Self {
+        Self::default()
+    }
+    
+    pub fn add_file(&self, path: impl AsRef<Path>, content: &str) {
+        self.files.lock().unwrap().insert(path.as_ref().to_path_buf(), content.to_string());
+    }
+}
+
+impl FileSystem for MockFileSystem {
+    fn read_to_string(&self, path: &Path) -> Result<String> {
+        let files = self.files.lock().unwrap();
+        match files.get(path) {
+            Some(content) => Ok(content.clone()),
+            None => bail!("MockFS: File not found: {:?}", path),
+        }
+    }
+
+    fn write_all(&self, path: &Path, content: &str) -> Result<()> {
+        self.files.lock().unwrap().insert(path.to_path_buf(), content.to_string());
+        Ok(())
+    }
+
+    fn create_dir_all(&self, _path: &Path) -> Result<()> {
+        Ok(())
+    }
+
+    fn create_symlink(&self, source: &Path, target: &Path) -> Result<()> {
+        self.symlinks.lock().unwrap().insert(target.to_path_buf(), source.to_path_buf());
+        Ok(())
+    }
+
+    fn exists(&self, path: &Path) -> bool {
+        self.files.lock().unwrap().contains_key(path)
+    }
+
+    fn is_file(&self, path: &Path) -> bool {
+        self.exists(path)
+    }
+}
+
+// --- Mock Template Renderer ---
+#[derive(Clone, Default)]
+pub struct MockTemplateRenderer;
+
+impl TemplateRenderer for MockTemplateRenderer {
+    fn render(&self, template: &str, context: &HashMap<String, Value>) -> Result<String> {
+        // Simple "fake" renderer that just replaces {{ key }} with value string
+        // Sufficient for unit testing logic flow, not engine correctness.
+        let mut result = template.to_string();
+        for (k, v) in context {
+            let placeholder = format!("{{{{ {} }}}}", k);
+            if let Value::String(s) = v {
+                 result = result.replace(&placeholder, s);
+            }
+        }
+        Ok(result)
+    }
+}
+
+// --- Mock Command Executor ---
+#[derive(Clone, Default)]
+pub struct MockCommandExecutor {
+    pub executed: Arc<Mutex<Vec<String>>>,
+}
+
+impl CommandExecutor for MockCommandExecutor {
+    fn run_command(&self, command: &str) -> Result<()> {
+        self.executed.lock().unwrap().push(command.to_string());
+        Ok(())
+    }
+
+    fn run_script(&self, path: &Path, args: &[String], _env: &HashMap<String, String>) -> Result<()> {
+        let cmd = format!("{} {}", path.display(), args.join(" "));
+        self.executed.lock().unwrap().push(cmd);
+        Ok(())
+    }
+}

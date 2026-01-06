@@ -4,15 +4,11 @@ use std::collections::HashMap;
 use serde_json::Value;
 use tera::{Tera, Context as TeraContext};
 
-pub struct TeraAdapter {
-    engine: Tera,
-}
+pub struct TeraAdapter;
 
 impl TeraAdapter {
     pub fn new() -> Self {
-        Self {
-            engine: Tera::default(),
-        }
+        Self
     }
 }
 
