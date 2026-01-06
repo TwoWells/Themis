@@ -5,13 +5,10 @@ use anyhow::{Context, Result};
 use tracing::{info, debug, Level};
 use tracing_subscriber::FmtSubscriber;
 
-mod core;
-mod adapters;
-
-use crate::core::orchestrator::Orchestrator;
-use crate::adapters::filesystem::RealFileSystem;
-use crate::adapters::template::TeraAdapter;
-use crate::adapters::command::RealCommandExecutor;
+use theman::core::orchestrator::Orchestrator;
+use theman::adapters::filesystem::RealFileSystem;
+use theman::adapters::template::TeraAdapter;
+use theman::adapters::command::RealCommandExecutor;
 
 #[derive(Parser)]
 #[command(name = "theman")]
