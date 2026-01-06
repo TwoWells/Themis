@@ -1,4 +1,5 @@
 use super::integration::Integration;
+use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
@@ -8,11 +9,11 @@ pub struct Config {
     /// The currently active profile name (e.g., "nord")
     pub current_profile: Option<String>,
 
-    /// Map of enrolled applications.
+    /// Map of enrolled applications, processed in YAML definition order.
     /// Key: App Name (e.g., "kitty")
     /// Value: Integration Definition
     #[serde(default)]
-    pub enroll: HashMap<String, Integration>,
+    pub enroll: IndexMap<String, Integration>,
 
     /// Global or App-specific variable overrides.
     /// Key: "global" or App Name
