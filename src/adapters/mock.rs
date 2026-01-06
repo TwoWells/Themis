@@ -76,9 +76,13 @@ impl TemplateRenderer for MockTemplateRenderer {
         let mut result = template.to_string();
         for (k, v) in context {
             let placeholder = format!("{{{{ {} }}}}", k);
-            if let Value::String(s) = v {
-                result = result.replace(&placeholder, s);
-            }
+            let replacement = match v {
+                Value::String(s) => s.clone(),
+                Value::Number(n) => n.to_string(),
+                Value::Bool(b) => b.to_string(),
+                _ => continue,
+            };
+            result = result.replace(&placeholder, &replacement);
         }
         Ok(result)
     }

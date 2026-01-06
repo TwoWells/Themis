@@ -13,8 +13,10 @@ mod tests {
         let tera = MockTemplateRenderer::default();
         let cmd = MockCommandExecutor::default();
         let config_dir = PathBuf::from("/config");
+        let system_dir = PathBuf::from("/system");
 
-        let orchestrator = Orchestrator::new(fs.clone(), tera, cmd, config_dir);
+        let orchestrator =
+            Orchestrator::with_system_dir(fs.clone(), tera, cmd, config_dir, system_dir);
         (fs, orchestrator)
     }
 
@@ -27,21 +29,21 @@ mod tests {
         let tera = MockTemplateRenderer::default();
         let cmd = MockCommandExecutor::default();
         let config_dir = PathBuf::from("/config");
+        let system_dir = PathBuf::from("/system");
 
-        let orchestrator = Orchestrator::new(fs.clone(), tera, cmd.clone(), config_dir);
+        let orchestrator =
+            Orchestrator::with_system_dir(fs.clone(), tera, cmd.clone(), config_dir, system_dir);
         (fs, cmd, orchestrator)
     }
 
     #[test]
-    fn test_profile_inheritance() {
+    fn test_profile_includes_palette() {
         let (fs, orchestrator) = setup();
 
-        // 1. Setup Files
         // theman.yaml
         fs.add_file(
             "/config/theman.yaml",
             r##"
-            current_profile: nord
             enroll:
               kitty:
                 type: template
@@ -50,12 +52,10 @@ mod tests {
         "##,
         );
 
-        // profiles/dark.yaml (Parent)
+        // System palette: dark (base colors)
         fs.add_file(
-            "/config/profiles/dark.yaml",
+            "/system/palettes/dark.yaml",
             r##"
-            metadata:
-              name: dark
             vars:
               mode: dark
               bg: "#000000"
@@ -63,15 +63,13 @@ mod tests {
         "##,
         );
 
-        // profiles/nord.yaml (Child)
+        // User profile: nord (includes dark palette, overrides bg)
         fs.add_file(
             "/config/profiles/nord.yaml",
             r##"
-            metadata:
-              name: nord
-            extends: dark
+            include: dark
             vars:
-              bg: "#2E3440" 
+              bg: "#2E3440"
         "##,
         );
 
@@ -81,16 +79,13 @@ mod tests {
             "mode={{ mode }} bg={{ bg }} font={{ font }}",
         );
 
-        // 2. Run
         let result = orchestrator.load_profile("nord");
         assert!(result.is_ok(), "Failed to load profile: {:?}", result.err());
 
-        // 3. Verify Output
-        // The child 'nord' should have:
-        // - mode: dark (Inherited)
-        // - font: Sans (Inherited)
-        // - bg: #2E3440 (Overridden)
-
+        // nord should have:
+        // - mode: dark (from palette)
+        // - font: Sans (from palette)
+        // - bg: #2E3440 (overridden in profile)
         let output = fs
             .read_to_string(&PathBuf::from("/config/out.conf"))
             .unwrap();
@@ -98,79 +93,200 @@ mod tests {
     }
 
     #[test]
-    fn test_circular_inheritance_detected() {
+    fn test_palette_inheritance() {
         let (fs, orchestrator) = setup();
 
-        // theman.yaml
         fs.add_file(
             "/config/theman.yaml",
             r##"
-            current_profile: a
+            enroll:
+              kitty:
+                type: template
+                input: /config/template.j2
+                output: /config/out.conf
+        "##,
+        );
+
+        // System palette: base
+        fs.add_file(
+            "/system/palettes/base.yaml",
+            r##"
+            vars:
+              font: "Monospace"
+              size: 12
+        "##,
+        );
+
+        // System palette: nord (includes base)
+        fs.add_file(
+            "/system/palettes/nord.yaml",
+            r##"
+            include: base
+            vars:
+              bg: "#2E3440"
+              fg: "#D8DEE9"
+        "##,
+        );
+
+        // User profile includes nord
+        fs.add_file(
+            "/config/profiles/myprofile.yaml",
+            r##"
+            include: nord
+            vars:
+              font: "JetBrains Mono"
+        "##,
+        );
+
+        fs.add_file(
+            "/config/template.j2",
+            "bg={{ bg }} font={{ font }} size={{ size }}",
+        );
+
+        let result = orchestrator.load_profile("myprofile");
+        assert!(result.is_ok(), "Failed: {:?}", result.err());
+
+        let output = fs
+            .read_to_string(&PathBuf::from("/config/out.conf"))
+            .unwrap();
+        // base: font=Monospace, size=12
+        // nord: bg=#2E3440, fg=#D8DEE9 (inherits font, size from base)
+        // myprofile: font=JetBrains Mono (overrides)
+        assert_eq!(output, "bg=#2E3440 font=JetBrains Mono size=12");
+    }
+
+    #[test]
+    fn test_user_palette_overrides_system() {
+        let (fs, orchestrator) = setup();
+
+        fs.add_file(
+            "/config/theman.yaml",
+            r##"
+            enroll:
+              kitty:
+                type: template
+                input: /config/template.j2
+                output: /config/out.conf
+        "##,
+        );
+
+        // System palette: nord
+        fs.add_file(
+            "/system/palettes/nord.yaml",
+            r##"
+            vars:
+              bg: "#2E3440"
+        "##,
+        );
+
+        // User palette: nord (overrides system)
+        fs.add_file(
+            "/config/palettes/nord.yaml",
+            r##"
+            vars:
+              bg: "#1a1a1a"
+        "##,
+        );
+
+        fs.add_file(
+            "/config/profiles/test.yaml",
+            r##"
+            include: nord
+        "##,
+        );
+
+        fs.add_file("/config/template.j2", "bg={{ bg }}");
+
+        let result = orchestrator.load_profile("test");
+        assert!(result.is_ok(), "Failed: {:?}", result.err());
+
+        let output = fs
+            .read_to_string(&PathBuf::from("/config/out.conf"))
+            .unwrap();
+        // User palette should take precedence
+        assert_eq!(output, "bg=#1a1a1a");
+    }
+
+    #[test]
+    fn test_circular_include_detected() {
+        let (fs, orchestrator) = setup();
+
+        fs.add_file(
+            "/config/theman.yaml",
+            r##"
             enroll: {}
         "##,
         );
 
-        // profiles/a.yaml extends b
+        // Palette a includes b
         fs.add_file(
-            "/config/profiles/a.yaml",
+            "/config/palettes/a.yaml",
             r##"
-            metadata:
-              name: a
-            extends: b
+            include: b
             vars: {}
         "##,
         );
 
-        // profiles/b.yaml extends a (circular!)
+        // Palette b includes a (circular!)
         fs.add_file(
-            "/config/profiles/b.yaml",
+            "/config/palettes/b.yaml",
             r##"
-            metadata:
-              name: b
-            extends: a
+            include: a
             vars: {}
         "##,
         );
 
-        let result = orchestrator.load_profile("a");
+        // Profile includes a
+        fs.add_file(
+            "/config/profiles/test.yaml",
+            r##"
+            include: a
+        "##,
+        );
+
+        let result = orchestrator.load_profile("test");
         assert!(result.is_err());
         let err = result.unwrap_err().to_string();
         assert!(
-            err.contains("Circular profile inheritance detected"),
-            "Expected circular inheritance error, got: {}",
+            err.contains("Circular include detected"),
+            "Expected circular include error, got: {}",
             err
         );
     }
 
     #[test]
-    fn test_self_referential_inheritance_detected() {
+    fn test_self_referential_include_detected() {
         let (fs, orchestrator) = setup();
 
         fs.add_file(
             "/config/theman.yaml",
             r##"
-            current_profile: self_ref
             enroll: {}
         "##,
         );
 
-        // Profile extends itself
+        // Palette includes itself
         fs.add_file(
-            "/config/profiles/self_ref.yaml",
+            "/config/palettes/self_ref.yaml",
             r##"
-            metadata:
-              name: self_ref
-            extends: self_ref
+            include: self_ref
             vars: {}
         "##,
         );
 
-        let result = orchestrator.load_profile("self_ref");
+        fs.add_file(
+            "/config/profiles/test.yaml",
+            r##"
+            include: self_ref
+        "##,
+        );
+
+        let result = orchestrator.load_profile("test");
         assert!(result.is_err());
         let err = result.unwrap_err().to_string();
         assert!(
-            err.contains("Circular profile inheritance detected"),
-            "Expected circular inheritance error, got: {}",
+            err.contains("Circular include detected"),
+            "Expected circular include error, got: {}",
             err
         );
     }

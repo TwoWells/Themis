@@ -9,11 +9,17 @@ use crate::core::integration::Integration;
 use crate::core::profile::Profile;
 use crate::core::traits::{CommandExecutor, FileSystem, TemplateRenderer};
 
+/// System-wide data directory (palettes, templates)
+pub const SYSTEM_DATA_DIR: &str = "/usr/share/theman";
+
 pub struct Orchestrator<FS, TR, CE> {
     fs: FS,
     template_renderer: TR,
     command_executor: CE,
+    /// User config directory (~/.config/theman)
     config_dir: PathBuf,
+    /// System data directory (/usr/share/theman)
+    system_dir: PathBuf,
 }
 
 impl<FS, TR, CE> Orchestrator<FS, TR, CE>
@@ -28,6 +34,24 @@ where
             template_renderer,
             command_executor,
             config_dir,
+            system_dir: PathBuf::from(SYSTEM_DATA_DIR),
+        }
+    }
+
+    /// Create orchestrator with custom system dir (useful for testing)
+    pub fn with_system_dir(
+        fs: FS,
+        template_renderer: TR,
+        command_executor: CE,
+        config_dir: PathBuf,
+        system_dir: PathBuf,
+    ) -> Self {
+        Self {
+            fs,
+            template_renderer,
+            command_executor,
+            config_dir,
+            system_dir,
         }
     }
 
@@ -93,7 +117,7 @@ where
         // Cycle detection
         if !visited.insert(profile_name.to_string()) {
             bail!(
-                "Circular profile inheritance detected: '{}' appears twice in the inheritance chain",
+                "Circular include detected: '{}' appears twice in the inheritance chain",
                 profile_name
             );
         }
@@ -101,19 +125,50 @@ where
         let profile = self.load_profile_file(profile_name)?;
         let mut vars = HashMap::new();
 
-        // 1. If extends, load parent first (Recursive)
-        if let Some(parent_name) = &profile.extends {
-            debug!("Inheriting from parent profile: {}", parent_name);
-            let parent_vars = self.resolve_profile_vars_inner(parent_name, visited)?;
-            vars.extend(parent_vars);
+        // 1. If include is set, load included palette/profile first (recursive)
+        if let Some(included_name) = &profile.include {
+            debug!("Including palette/profile: {}", included_name);
+            let included_vars = self.resolve_palette_vars_inner(included_name, visited)?;
+            vars.extend(included_vars);
         }
 
-        // 2. Apply current profile vars
+        // 2. Apply current profile vars (override included values)
         vars.extend(profile.vars);
 
         Ok(vars)
     }
 
+    /// Resolve palette variables, searching user palettes then system palettes.
+    fn resolve_palette_vars_inner(
+        &self,
+        palette_name: &str,
+        visited: &mut HashSet<String>,
+    ) -> Result<HashMap<String, Value>> {
+        // Cycle detection
+        if !visited.insert(palette_name.to_string()) {
+            bail!(
+                "Circular include detected: '{}' appears twice in the inheritance chain",
+                palette_name
+            );
+        }
+
+        let palette = self.load_palette_file(palette_name)?;
+        let mut vars = HashMap::new();
+
+        // 1. If palette includes another palette, load it first
+        if let Some(included_name) = &palette.include {
+            debug!("Palette '{}' includes: {}", palette_name, included_name);
+            let included_vars = self.resolve_palette_vars_inner(included_name, visited)?;
+            vars.extend(included_vars);
+        }
+
+        // 2. Apply palette vars
+        vars.extend(palette.vars);
+
+        Ok(vars)
+    }
+
+    /// Load a profile from user profiles directory.
     fn load_profile_file(&self, name: &str) -> Result<Profile> {
         let path = self
             .config_dir
@@ -125,6 +180,39 @@ where
             .with_context(|| format!("Profile not found: {}", name))?;
 
         serde_yaml::from_str(&content).with_context(|| format!("Failed to parse profile: {}", name))
+    }
+
+    /// Load a palette, searching user palettes first, then system palettes.
+    fn load_palette_file(&self, name: &str) -> Result<Profile> {
+        let user_path = self
+            .config_dir
+            .join("palettes")
+            .join(format!("{}.yaml", name));
+        let system_path = self
+            .system_dir
+            .join("palettes")
+            .join(format!("{}.yaml", name));
+
+        // Try user palette first
+        if self.fs.exists(&user_path) {
+            debug!("Loading user palette: {:?}", user_path);
+            let content = self.fs.read_to_string(&user_path)?;
+            return serde_yaml::from_str(&content)
+                .with_context(|| format!("Failed to parse user palette: {}", name));
+        }
+
+        // Fall back to system palette
+        if self.fs.exists(&system_path) {
+            debug!("Loading system palette: {:?}", system_path);
+            let content = self.fs.read_to_string(&system_path)?;
+            return serde_yaml::from_str(&content)
+                .with_context(|| format!("Failed to parse system palette: {}", name));
+        }
+
+        bail!(
+            "Palette not found: {} (searched user and system directories)",
+            name
+        )
     }
 
     fn apply_integration(
