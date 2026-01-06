@@ -1,7 +1,7 @@
-use std::path::Path;
-use std::collections::HashMap;
 use anyhow::Result;
 use serde_json::Value;
+use std::collections::HashMap;
+use std::path::Path;
 
 /// Abstract interface for rendering text templates.
 /// This isolates the core from specific engines like Tera or Handlebars.
@@ -15,14 +15,10 @@ pub trait TemplateRenderer {
 pub trait CommandExecutor {
     /// Run a simple shell command (e.g., "pkill -USR1 waybar")
     fn run_command(&self, command: &str) -> Result<()>;
-    
+
     /// Run an external script with arguments and environment variables
-    fn run_script(
-        &self, 
-        path: &Path, 
-        args: &[String], 
-        env: &HashMap<String, String>
-    ) -> Result<()>;
+    fn run_script(&self, path: &Path, args: &[String], env: &HashMap<String, String>)
+        -> Result<()>;
 }
 
 /// Abstract interface for File I/O.

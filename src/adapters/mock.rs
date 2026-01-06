@@ -1,11 +1,11 @@
 #![allow(dead_code)] // Mocks might have unused methods in some tests
 
-use crate::core::traits::{FileSystem, CommandExecutor, TemplateRenderer};
-use anyhow::{Result, bail};
+use crate::core::traits::{CommandExecutor, FileSystem, TemplateRenderer};
+use anyhow::{bail, Result};
+use serde_json::Value;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
-use serde_json::Value;
 
 // --- Mock File System ---
 #[derive(Clone, Default)]
@@ -18,9 +18,12 @@ impl MockFileSystem {
     pub fn new() -> Self {
         Self::default()
     }
-    
+
     pub fn add_file(&self, path: impl AsRef<Path>, content: &str) {
-        self.files.lock().unwrap().insert(path.as_ref().to_path_buf(), content.to_string());
+        self.files
+            .lock()
+            .unwrap()
+            .insert(path.as_ref().to_path_buf(), content.to_string());
     }
 }
 
@@ -34,7 +37,10 @@ impl FileSystem for MockFileSystem {
     }
 
     fn write_all(&self, path: &Path, content: &str) -> Result<()> {
-        self.files.lock().unwrap().insert(path.to_path_buf(), content.to_string());
+        self.files
+            .lock()
+            .unwrap()
+            .insert(path.to_path_buf(), content.to_string());
         Ok(())
     }
 
@@ -43,7 +49,10 @@ impl FileSystem for MockFileSystem {
     }
 
     fn create_symlink(&self, source: &Path, target: &Path) -> Result<()> {
-        self.symlinks.lock().unwrap().insert(target.to_path_buf(), source.to_path_buf());
+        self.symlinks
+            .lock()
+            .unwrap()
+            .insert(target.to_path_buf(), source.to_path_buf());
         Ok(())
     }
 
@@ -68,7 +77,7 @@ impl TemplateRenderer for MockTemplateRenderer {
         for (k, v) in context {
             let placeholder = format!("{{{{ {} }}}}", k);
             if let Value::String(s) = v {
-                 result = result.replace(&placeholder, s);
+                result = result.replace(&placeholder, s);
             }
         }
         Ok(result)
@@ -87,7 +96,12 @@ impl CommandExecutor for MockCommandExecutor {
         Ok(())
     }
 
-    fn run_script(&self, path: &Path, args: &[String], _env: &HashMap<String, String>) -> Result<()> {
+    fn run_script(
+        &self,
+        path: &Path,
+        args: &[String],
+        _env: &HashMap<String, String>,
+    ) -> Result<()> {
         let cmd = format!("{} {}", path.display(), args.join(" "));
         self.executed.lock().unwrap().push(cmd);
         Ok(())

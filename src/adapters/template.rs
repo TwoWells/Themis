@@ -1,9 +1,10 @@
 use crate::core::traits::TemplateRenderer;
 use anyhow::{Context, Result};
-use std::collections::HashMap;
 use serde_json::Value;
-use tera::{Tera, Context as TeraContext};
+use std::collections::HashMap;
+use tera::{Context as TeraContext, Tera};
 
+#[derive(Default)]
 pub struct TeraAdapter;
 
 impl TeraAdapter {
@@ -18,12 +19,12 @@ impl TemplateRenderer for TeraAdapter {
         for (k, v) in context {
             tera_ctx.insert(k, v);
         }
-        
+
         // Tera requires registering a template string to render it if it's not a file
         // Or we can use render_str (one-off)
         let rendered = Tera::one_off(template_content, &tera_ctx, false)
             .context("Failed to render template string")?;
-            
+
         Ok(rendered)
     }
 }

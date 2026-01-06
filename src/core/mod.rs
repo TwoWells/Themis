@@ -1,8 +1,8 @@
 pub mod config;
 pub mod integration;
+pub mod orchestrator;
 pub mod profile;
 pub mod traits;
-pub mod orchestrator;
 
 #[cfg(test)]
 mod tests;

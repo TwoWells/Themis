@@ -1,14 +1,14 @@
-use clap::{Parser, Subcommand};
-use std::path::PathBuf;
-use directories::ProjectDirs;
 use anyhow::{Context, Result};
-use tracing::{info, debug, Level};
+use clap::{Parser, Subcommand};
+use directories::ProjectDirs;
+use std::path::PathBuf;
+use tracing::{debug, info, Level};
 use tracing_subscriber::FmtSubscriber;
 
-use theman::core::orchestrator::Orchestrator;
+use theman::adapters::command::RealCommandExecutor;
 use theman::adapters::filesystem::RealFileSystem;
 use theman::adapters::template::TeraAdapter;
-use theman::adapters::command::RealCommandExecutor;
+use theman::core::orchestrator::Orchestrator;
 
 #[derive(Parser)]
 #[command(name = "theman")]
@@ -34,10 +34,10 @@ enum Commands {
         /// The name of the profile to load (e.g., "nord")
         profile: String,
     },
-    
+
     /// Show current status
     Status,
-    
+
     /// Initialize configuration
     Init,
 }
@@ -46,12 +46,13 @@ fn main() -> Result<()> {
     let cli = Cli::parse();
 
     // 1. Setup Logging
-    let log_level = if cli.verbose { Level::DEBUG } else { Level::INFO };
-    let subscriber = FmtSubscriber::builder()
-        .with_max_level(log_level)
-        .finish();
-    tracing::subscriber::set_global_default(subscriber)
-        .context("Failed to set up logging")?;
+    let log_level = if cli.verbose {
+        Level::DEBUG
+    } else {
+        Level::INFO
+    };
+    let subscriber = FmtSubscriber::builder().with_max_level(log_level).finish();
+    tracing::subscriber::set_global_default(subscriber).context("Failed to set up logging")?;
 
     // 2. Determine Config Dir
     let config_dir = if let Some(path) = cli.config {
@@ -62,7 +63,7 @@ fn main() -> Result<()> {
             .config_dir()
             .to_path_buf()
     };
-    
+
     // Hack: 'directories' crate uses 'com.theman.theman' -> ~/.config/theman on Linux usually
     // But verify.
     debug!("Config dir: {:?}", config_dir);
@@ -71,7 +72,7 @@ fn main() -> Result<()> {
     let fs = RealFileSystem;
     let tera = TeraAdapter::new();
     let cmd = RealCommandExecutor;
-    
+
     let orchestrator = Orchestrator::new(fs, tera, cmd, config_dir);
 
     // 4. Run Command

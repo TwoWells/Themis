@@ -30,11 +30,12 @@ impl CommandExecutor for RealCommandExecutor {
         env: &HashMap<String, String>,
     ) -> Result<()> {
         let mut cmd = Command::new(path);
-        
+
         cmd.args(args);
         cmd.envs(env);
 
-        let output = cmd.output()
+        let output = cmd
+            .output()
             .with_context(|| format!("Failed to spawn script: {:?}", path))?;
 
         if !output.status.success() {

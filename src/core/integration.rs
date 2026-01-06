@@ -15,7 +15,7 @@ pub enum Integration {
         #[serde(default)]
         reload_signal: Option<String>,
     },
-    
+
     /// Symlink a source file/dir to a target
     Symlink {
         source: String,
@@ -23,7 +23,7 @@ pub enum Integration {
         #[serde(default)]
         reload_cmd: Option<String>,
     },
-    
+
     /// Execute an external script
     Script {
         path: String,
@@ -32,9 +32,7 @@ pub enum Integration {
         #[serde(default)]
         env: HashMap<String, String>,
     },
-    
+
     /// Run a list of shell commands
-    Command {
-        commands: Vec<String>,
-    },
+    Command { commands: Vec<String> },
 }

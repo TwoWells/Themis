@@ -1,0 +1,32 @@
+#!/bin/sh
+# Redirect output to stderr.
+exec 1>&2
+
+echo "Running pre-commit checks..."
+
+# 1. Check Rust Formatting
+if ! cargo fmt -- --check; then
+    echo "❌ Rust formatting errors found. Run 'make fmt' to fix."
+    exit 1
+fi
+
+# 2. Check Prettier Formatting
+# Use npx if available, or just prettier
+if command -v prettier >/dev/null 2>&1; then
+    if ! prettier --check .; then
+        echo "❌ Prettier formatting errors found. Run 'make fmt' to fix."
+        exit 1
+    fi
+else
+    echo "⚠️  Prettier not found. Skipping web file checks."
+fi
+
+# 3. Run Tests (Optional - might be too slow for pre-commit?)
+# For a small project, it's fine.
+if ! cargo test --quiet; then
+    echo "❌ Tests failed."
+    exit 1
+fi
+
+echo "✅ All checks passed."
+exit 0
