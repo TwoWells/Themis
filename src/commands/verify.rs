@@ -174,10 +174,7 @@ fn verify_profiles(
 
     for entry in entries.flatten() {
         let path = entry.path();
-        if path
-            .extension()
-            .map_or(false, |e| e == "yaml" || e == "yml")
-        {
+        if path.extension().is_some_and(|e| e == "yaml" || e == "yml") {
             let name = path.file_stem().unwrap().to_string_lossy();
 
             let content = match std::fs::read_to_string(&path) {
@@ -223,10 +220,7 @@ fn verify_palettes(
 
     for entry in entries.flatten() {
         let path = entry.path();
-        if path
-            .extension()
-            .map_or(false, |e| e == "yaml" || e == "yml")
-        {
+        if path.extension().is_some_and(|e| e == "yaml" || e == "yml") {
             let name = path.file_stem().unwrap().to_string_lossy();
 
             let content = match std::fs::read_to_string(&path) {

@@ -285,3 +285,303 @@ vars: {}
         result.errors
     );
 }
+
+#[test]
+fn test_doctor_detects_missing_include() {
+    let temp_dir = TempDir::new().unwrap();
+    let config_dir = temp_dir.path().join("config");
+
+    fs::create_dir_all(&config_dir).unwrap();
+
+    // Create config enrolling kitty
+    fs::write(
+        config_dir.join("theman.yaml"),
+        r#"
+enroll:
+  kitty:
+    type: template
+    input: "~/.config/theman/templates/kitty.j2"
+    output: "~/.config/kitty/.theman.conf"
+"#,
+    )
+    .unwrap();
+
+    // Create kitty config WITHOUT the include pattern
+    let dot_config_kitty = temp_dir.path().join(".config/kitty");
+    fs::create_dir_all(&dot_config_kitty).unwrap();
+    fs::write(
+        dot_config_kitty.join("kitty.conf"),
+        "# Kitty config\nfont_size 12\n",
+    )
+    .unwrap();
+
+    // Run doctor in subprocess with isolated HOME
+    let output = std::process::Command::new(env!("CARGO_BIN_EXE_theman"))
+        .args(["--config", config_dir.to_str().unwrap(), "doctor"])
+        .env("HOME", temp_dir.path())
+        .output()
+        .unwrap();
+
+    // Should exit with failure (missing include pattern)
+    assert!(!output.status.success(), "Should fail when include missing");
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    let combined = format!("{}{}", stdout, stderr);
+    assert!(
+        combined.contains("kitty"),
+        "Should mention kitty in output: {}",
+        combined
+    );
+}
+
+#[test]
+fn test_doctor_reports_ok_with_include() {
+    let temp_dir = TempDir::new().unwrap();
+    let config_dir = temp_dir.path().join("config");
+
+    fs::create_dir_all(&config_dir).unwrap();
+
+    // Create config enrolling kitty
+    fs::write(
+        config_dir.join("theman.yaml"),
+        r#"
+enroll:
+  kitty:
+    type: template
+    input: "~/.config/theman/templates/kitty.j2"
+    output: "~/.config/kitty/.theman.conf"
+"#,
+    )
+    .unwrap();
+
+    // Create kitty config WITH the include pattern
+    let dot_config_kitty = temp_dir.path().join(".config/kitty");
+    fs::create_dir_all(&dot_config_kitty).unwrap();
+    fs::write(
+        dot_config_kitty.join("kitty.conf"),
+        "# Kitty config\ninclude .theman.conf\nfont_size 12\n",
+    )
+    .unwrap();
+
+    // Run doctor in subprocess with isolated HOME
+    let output = std::process::Command::new(env!("CARGO_BIN_EXE_theman"))
+        .args(["--config", config_dir.to_str().unwrap(), "doctor"])
+        .env("HOME", temp_dir.path())
+        .output()
+        .unwrap();
+
+    assert!(
+        output.status.success(),
+        "Should succeed when include present: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+}
+
+#[test]
+fn test_doctor_skips_unknown_apps() {
+    let temp_dir = TempDir::new().unwrap();
+    let config_dir = temp_dir.path().join("config");
+
+    fs::create_dir_all(&config_dir).unwrap();
+
+    // Create config enrolling gtk (which has no check defined)
+    fs::write(
+        config_dir.join("theman.yaml"),
+        r#"
+enroll:
+  gtk:
+    type: command
+    commands:
+      - "gsettings set org.gnome.desktop.interface color-scheme prefer-dark"
+"#,
+    )
+    .unwrap();
+
+    // Run doctor in subprocess with isolated HOME
+    let output = std::process::Command::new(env!("CARGO_BIN_EXE_theman"))
+        .args(["--config", config_dir.to_str().unwrap(), "doctor"])
+        .env("HOME", temp_dir.path())
+        .output()
+        .unwrap();
+
+    // Should succeed (unknown apps are skipped, not failures)
+    assert!(
+        output.status.success(),
+        "Should succeed when only unknown apps: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+}
+
+#[test]
+fn test_status_shows_no_state_initially() {
+    let temp_dir = TempDir::new().unwrap();
+
+    // Run status in subprocess with isolated HOME (no state file exists)
+    let output = std::process::Command::new(env!("CARGO_BIN_EXE_theman"))
+        .arg("status")
+        .env("HOME", temp_dir.path())
+        .output()
+        .unwrap();
+
+    assert!(output.status.success(), "Status should succeed");
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(
+        stdout.contains("No state found"),
+        "Should indicate no state: {}",
+        stdout
+    );
+}
+
+#[test]
+fn test_status_shows_loaded_profile() {
+    let temp_dir = TempDir::new().unwrap();
+    let config_dir = temp_dir.path().join(".config/theman");
+
+    // Create minimal config and profile
+    fs::create_dir_all(config_dir.join("profiles")).unwrap();
+    fs::create_dir_all(config_dir.join("templates")).unwrap();
+
+    fs::write(config_dir.join("theman.yaml"), "enroll: {}").unwrap();
+    fs::write(
+        config_dir.join("profiles/test-profile.yaml"),
+        "vars:\n  bg: \"#000000\"",
+    )
+    .unwrap();
+
+    // Run load first
+    let load_output = std::process::Command::new(env!("CARGO_BIN_EXE_theman"))
+        .args([
+            "--config",
+            config_dir.to_str().unwrap(),
+            "load",
+            "test-profile",
+        ])
+        .env("HOME", temp_dir.path())
+        .output()
+        .unwrap();
+
+    assert!(
+        load_output.status.success(),
+        "Load should succeed: {}",
+        String::from_utf8_lossy(&load_output.stderr)
+    );
+
+    // Now run status
+    let status_output = std::process::Command::new(env!("CARGO_BIN_EXE_theman"))
+        .arg("status")
+        .env("HOME", temp_dir.path())
+        .output()
+        .unwrap();
+
+    assert!(status_output.status.success(), "Status should succeed");
+    let stdout = String::from_utf8_lossy(&status_output.stdout);
+    assert!(
+        stdout.contains("test-profile"),
+        "Should show loaded profile name: {}",
+        stdout
+    );
+}
+
+#[test]
+fn test_dry_run_does_not_save_state() {
+    let temp_dir = TempDir::new().unwrap();
+    let config_dir = temp_dir.path().join(".config/theman");
+
+    // Create minimal config and profile
+    fs::create_dir_all(config_dir.join("profiles")).unwrap();
+
+    fs::write(config_dir.join("theman.yaml"), "enroll: {}").unwrap();
+    fs::write(
+        config_dir.join("profiles/test-profile.yaml"),
+        "vars:\n  bg: \"#000000\"",
+    )
+    .unwrap();
+
+    // Run load with --dry-run
+    let load_output = std::process::Command::new(env!("CARGO_BIN_EXE_theman"))
+        .args([
+            "--config",
+            config_dir.to_str().unwrap(),
+            "load",
+            "test-profile",
+            "--dry-run",
+        ])
+        .env("HOME", temp_dir.path())
+        .output()
+        .unwrap();
+
+    assert!(
+        load_output.status.success(),
+        "Dry-run load should succeed: {}",
+        String::from_utf8_lossy(&load_output.stderr)
+    );
+
+    // Now run status - should show no state
+    let status_output = std::process::Command::new(env!("CARGO_BIN_EXE_theman"))
+        .arg("status")
+        .env("HOME", temp_dir.path())
+        .output()
+        .unwrap();
+
+    assert!(status_output.status.success(), "Status should succeed");
+    let stdout = String::from_utf8_lossy(&status_output.stdout);
+    assert!(
+        stdout.contains("No state found"),
+        "Dry-run should not save state: {}",
+        stdout
+    );
+}
+
+#[test]
+fn test_status_respects_xdg_state_home() {
+    let temp_dir = TempDir::new().unwrap();
+    let config_dir = temp_dir.path().join(".config/theman");
+    let custom_state_dir = temp_dir.path().join("custom-state");
+
+    // Create minimal config and profile
+    fs::create_dir_all(config_dir.join("profiles")).unwrap();
+    fs::create_dir_all(&custom_state_dir).unwrap();
+
+    fs::write(config_dir.join("theman.yaml"), "enroll: {}").unwrap();
+    fs::write(
+        config_dir.join("profiles/xdg-test.yaml"),
+        "vars:\n  bg: \"#000000\"",
+    )
+    .unwrap();
+
+    // Run load with custom XDG_STATE_HOME
+    let load_output = std::process::Command::new(env!("CARGO_BIN_EXE_theman"))
+        .args(["--config", config_dir.to_str().unwrap(), "load", "xdg-test"])
+        .env("HOME", temp_dir.path())
+        .env("XDG_STATE_HOME", &custom_state_dir)
+        .output()
+        .unwrap();
+
+    assert!(
+        load_output.status.success(),
+        "Load should succeed: {}",
+        String::from_utf8_lossy(&load_output.stderr)
+    );
+
+    // Verify state was saved to custom location
+    let state_file = custom_state_dir.join("theman/state.json");
+    assert!(
+        state_file.exists(),
+        "State should be saved to XDG_STATE_HOME"
+    );
+
+    // Verify status reads from custom location
+    let status_output = std::process::Command::new(env!("CARGO_BIN_EXE_theman"))
+        .arg("status")
+        .env("HOME", temp_dir.path())
+        .env("XDG_STATE_HOME", &custom_state_dir)
+        .output()
+        .unwrap();
+
+    let stdout = String::from_utf8_lossy(&status_output.stdout);
+    assert!(
+        stdout.contains("xdg-test"),
+        "Status should read from XDG_STATE_HOME: {}",
+        stdout
+    );
+}

@@ -10,6 +10,7 @@ use theman::adapters::dryrun::{DryRunCommandExecutor, DryRunFileSystem};
 use theman::adapters::filesystem::RealFileSystem;
 use theman::adapters::template::TeraAdapter;
 use theman::core::orchestrator::{Orchestrator, SYSTEM_DATA_DIR};
+use theman::core::state::State;
 
 #[derive(Parser)]
 #[command(name = "theman")]
@@ -48,6 +49,9 @@ enum Commands {
 
     /// Verify configuration is valid
     Verify,
+
+    /// Check app configurations for proper setup
+    Doctor,
 }
 
 fn main() -> Result<()> {
@@ -88,6 +92,7 @@ fn main() -> Result<()> {
                     config_dir,
                 );
                 orchestrator.load_profile(&profile)?;
+                // Don't save state in dry-run mode
             } else {
                 let orchestrator = Orchestrator::new(
                     RealFileSystem,
@@ -96,10 +101,14 @@ fn main() -> Result<()> {
                     config_dir,
                 );
                 orchestrator.load_profile(&profile)?;
+
+                // Save state after successful load
+                let state = State::new(profile);
+                state.save()?;
             }
         }
         Commands::Status => {
-            info!("Status command not implemented yet");
+            theman::commands::status::run()?;
         }
         Commands::Init => {
             theman::commands::init::run(&config_dir)?;
@@ -108,6 +117,12 @@ fn main() -> Result<()> {
             let system_dir = PathBuf::from(SYSTEM_DATA_DIR);
             let result = theman::commands::verify::run(&config_dir, &system_dir)?;
             if !result.is_ok() {
+                std::process::exit(1);
+            }
+        }
+        Commands::Doctor => {
+            let result = theman::commands::doctor::run(&config_dir)?;
+            if !result.is_healthy() {
                 std::process::exit(1);
             }
         }
