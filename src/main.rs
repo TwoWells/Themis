@@ -9,7 +9,7 @@ use theman::adapters::command::RealCommandExecutor;
 use theman::adapters::dryrun::{DryRunCommandExecutor, DryRunFileSystem};
 use theman::adapters::filesystem::RealFileSystem;
 use theman::adapters::template::TeraAdapter;
-use theman::core::orchestrator::Orchestrator;
+use theman::core::orchestrator::{Orchestrator, SYSTEM_DATA_DIR};
 
 #[derive(Parser)]
 #[command(name = "theman")]
@@ -45,6 +45,9 @@ enum Commands {
 
     /// Initialize configuration
     Init,
+
+    /// Verify configuration is valid
+    Verify,
 }
 
 fn main() -> Result<()> {
@@ -99,7 +102,14 @@ fn main() -> Result<()> {
             info!("Status command not implemented yet");
         }
         Commands::Init => {
-            info!("Init command not implemented yet");
+            theman::commands::init::run(&config_dir)?;
+        }
+        Commands::Verify => {
+            let system_dir = PathBuf::from(SYSTEM_DATA_DIR);
+            let result = theman::commands::verify::run(&config_dir, &system_dir)?;
+            if !result.is_ok() {
+                std::process::exit(1);
+            }
         }
     }
 
