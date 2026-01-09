@@ -1,17 +1,23 @@
 # HyprPolkitAgent (Systemd Service Example)
 
 ## 1. The Challenge
-Some background services (like polkit agents) read their theme from environment variables when they start. To change the theme, you must:
+
+Some background services (like polkit agents) read their theme from environment variables when they
+start. To change the theme, you must:
+
 1.  Update the environment variable definition.
 2.  Import that variable into the `systemd --user` session.
 3.  Restart the service.
 
 ## 2. TheMan's Approach
-This requires a **Script Integration** because it involves multiple sequential steps involving system state.
+
+This requires a **Script Integration** because it involves multiple sequential steps involving
+system state.
 
 ## 3. Configuration Example
 
 **Script:** `~/.config/theman/scripts/update_polkit.sh`
+
 ```bash
 #!/bin/bash
 
@@ -27,6 +33,7 @@ systemctl --user restart hyprpolkitagent
 ```
 
 **TheMan Config:**
+
 ```yaml
 enroll:
   polkit:

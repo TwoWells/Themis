@@ -1,23 +1,28 @@
 # Rofi Integration
 
 ## 1. Mechanism
-Rofi uses `.rasi` files (CSS-like syntax).
-It loads a main configuration file (`config.rasi`). This file can import a theme using `@theme "name"`.
+
+Rofi uses `.rasi` files (CSS-like syntax). It loads a main configuration file (`config.rasi`). This
+file can import a theme using `@theme "name"`.
 
 ## 2. TheMan's Approach
-We use the **Template** pattern.
-We generate a `.rasi` file containing the colors and save it as `~/.config/rofi/theman.rasi`.
+
+We use the **Template** pattern. We generate a `.rasi` file containing the colors and save it as
+`~/.config/rofi/theman.rasi`.
 
 ## 3. User Setup
+
 **One-time:** Edit `~/.config/rofi/config.rasi` to point to the generated theme.
+
 ```css
 configuration {
-    /* ... settings ... */
+  /* ... settings ... */
 }
-@theme "theman"
+@theme "theman";
 ```
 
 ## 4. Equivalent Configuration
+
 ```yaml
 enroll:
   rofi:
