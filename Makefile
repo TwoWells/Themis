@@ -1,4 +1,4 @@
-.PHONY: fmt lint test check build install uninstall clean hook-setup
+.PHONY: fmt lint test check build install install-completions uninstall clean hook-setup
 
 # Install paths (override with PREFIX=/usr for system install)
 PREFIX ?= /usr/local
@@ -33,6 +33,16 @@ build:
 # 6. Install (use sudo for system install, or PREFIX=~/.local for user install)
 install: build
 	install -Dm755 target/release/theman $(BINDIR)/theman
+ifeq ($(PREFIX),/usr)
+	$(MAKE) install-completions
+else ifeq ($(PREFIX),/usr/local)
+	$(MAKE) install-completions
+else
+	@echo "Note: Shell completions not installed for user prefix."
+	@echo "Use 'eval \"\$$(theman completions bash)\"' in your shell rc file."
+endif
+
+install-completions:
 	install -dm755 $(BASH_COMPLETION_DIR)
 	install -dm755 $(ZSH_COMPLETION_DIR)
 	install -dm755 $(FISH_COMPLETION_DIR)
