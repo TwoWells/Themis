@@ -1,9 +1,51 @@
+//! Configuration schema for TheMan.
+//!
+//! The main configuration file (`theman.yaml`) defines which applications
+//! are enrolled and how they should be themed.
+//!
+//! # Example
+//!
+//! ```
+//! use theman::core::config::Config;
+//!
+//! let yaml = r#"
+//! enroll:
+//!   kitty:
+//!     type: template
+//!     input: "~/.config/theman/templates/kitty.j2"
+//!     output: "~/.config/kitty/.theman.conf"
+//!   gtk:
+//!     type: command
+//!     commands:
+//!       - "gsettings set org.gnome.desktop.interface color-scheme 'prefer-dark'"
+//!
+//! overrides:
+//!   global:
+//!     font_size: 12
+//!   kitty:
+//!     font_size: 14
+//! "#;
+//!
+//! let config: Config = serde_yaml::from_str(yaml).unwrap();
+//! assert_eq!(config.enroll.len(), 2);
+//!
+//! // App-specific overrides take precedence over global
+//! let kitty_overrides = config.get_overrides_for("kitty");
+//! assert_eq!(kitty_overrides.get("font_size").unwrap(), 14);
+//! ```
+
 use super::integration::Integration;
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
 
+/// Main configuration for TheMan, loaded from `theman.yaml`.
+///
+/// # Fields
+///
+/// - `enroll`: Applications to theme, processed in YAML definition order
+/// - `overrides`: Variable overrides (global or per-app)
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Config {
     /// The currently active profile name (e.g., "nord")
@@ -23,7 +65,36 @@ pub struct Config {
 }
 
 impl Config {
-    /// Returns the global overrides merged with app-specific overrides for a given app.
+    /// Returns global overrides merged with app-specific overrides.
+    ///
+    /// App-specific overrides take precedence over global overrides.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use theman::core::config::Config;
+    ///
+    /// let yaml = r#"
+    /// enroll: {}
+    /// overrides:
+    ///   global:
+    ///     font: "Sans"
+    ///     size: 12
+    ///   waybar:
+    ///     size: 10
+    /// "#;
+    ///
+    /// let config: Config = serde_yaml::from_str(yaml).unwrap();
+    ///
+    /// // waybar gets global font but its own size
+    /// let waybar = config.get_overrides_for("waybar");
+    /// assert_eq!(waybar.get("font").unwrap(), "Sans");
+    /// assert_eq!(waybar.get("size").unwrap(), 10);
+    ///
+    /// // kitty gets all global values (no app-specific overrides)
+    /// let kitty = config.get_overrides_for("kitty");
+    /// assert_eq!(kitty.get("size").unwrap(), 12);
+    /// ```
     pub fn get_overrides_for(&self, app_name: &str) -> HashMap<String, Value> {
         let mut resolved = HashMap::new();
 

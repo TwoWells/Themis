@@ -1,3 +1,28 @@
+//! State persistence for TheMan.
+//!
+//! Tracks the currently loaded profile and saves it to disk following
+//! the XDG Base Directory specification.
+//!
+//! # Example
+//!
+//! ```
+//! use theman::core::state::State;
+//! use tempfile::TempDir;
+//!
+//! // Create a new state after loading a profile
+//! let state = State::new("nord-dark".to_string());
+//! assert_eq!(state.current.as_ref().unwrap().profile, "nord-dark");
+//!
+//! // Save to a custom path (for testing)
+//! let temp = TempDir::new().unwrap();
+//! let path = temp.path().join("state.json");
+//! state.save_to(&path).unwrap();
+//!
+//! // Load it back
+//! let loaded = State::load_from(&path).unwrap().unwrap();
+//! assert_eq!(loaded.current.unwrap().profile, "nord-dark");
+//! ```
+
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use std::fs;
@@ -6,9 +31,13 @@ use tracing::debug;
 
 const STATE_FILE: &str = "state.json";
 
+/// Persistent state for TheMan, saved between invocations.
+///
+/// State is stored at `$XDG_STATE_HOME/theman/state.json` (defaults to
+/// `~/.local/state/theman/state.json`).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct State {
-    /// Timestamp of last successful load
+    /// Timestamp of last successful load (ISO 8601 format)
     pub last_run: String,
 
     /// Whether the last operation succeeded
@@ -18,6 +47,7 @@ pub struct State {
     pub current: Option<CurrentState>,
 }
 
+/// Information about the currently loaded profile.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CurrentState {
     /// Name of the currently loaded profile
@@ -25,6 +55,17 @@ pub struct CurrentState {
 }
 
 impl State {
+    /// Create a new state for a successfully loaded profile.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use theman::core::state::State;
+    ///
+    /// let state = State::new("gruvbox".to_string());
+    /// assert!(state.success);
+    /// assert_eq!(state.current.unwrap().profile, "gruvbox");
+    /// ```
     pub fn new(profile: String) -> Self {
         Self {
             last_run: chrono_now(),
@@ -33,7 +74,10 @@ impl State {
         }
     }
 
-    /// Get the state file path following XDG Base Directory spec
+    /// Get the state file path following XDG Base Directory spec.
+    ///
+    /// Returns `$XDG_STATE_HOME/theman/state.json` if `XDG_STATE_HOME` is set,
+    /// otherwise `~/.local/state/theman/state.json`.
     pub fn state_path() -> Result<PathBuf> {
         let state_home = if let Ok(xdg) = std::env::var("XDG_STATE_HOME") {
             PathBuf::from(xdg)
@@ -44,7 +88,9 @@ impl State {
         Ok(state_home.join("theman").join(STATE_FILE))
     }
 
-    /// Load state from disk, returns None if file doesn't exist
+    /// Load state from the default XDG location.
+    ///
+    /// Returns `Ok(None)` if no state file exists yet.
     pub fn load() -> Result<Option<Self>> {
         let path = Self::state_path()?;
 
@@ -60,7 +106,27 @@ impl State {
         Ok(Some(state))
     }
 
-    /// Load state from a specific path (for testing)
+    /// Load state from a specific path.
+    ///
+    /// Returns `Ok(None)` if the file doesn't exist.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use theman::core::state::State;
+    /// use tempfile::TempDir;
+    ///
+    /// let temp = TempDir::new().unwrap();
+    /// let path = temp.path().join("state.json");
+    ///
+    /// // No file yet
+    /// assert!(State::load_from(&path).unwrap().is_none());
+    ///
+    /// // Save and reload
+    /// State::new("dracula".to_string()).save_to(&path).unwrap();
+    /// let state = State::load_from(&path).unwrap().unwrap();
+    /// assert_eq!(state.current.unwrap().profile, "dracula");
+    /// ```
     pub fn load_from(path: &Path) -> Result<Option<Self>> {
         if !path.exists() {
             return Ok(None);
@@ -72,13 +138,36 @@ impl State {
         Ok(Some(state))
     }
 
-    /// Save state to disk
+    /// Save state to the default XDG location.
+    ///
+    /// Creates parent directories if they don't exist.
     pub fn save(&self) -> Result<()> {
         let path = Self::state_path()?;
         self.save_to(&path)
     }
 
-    /// Save state to a specific path (for testing)
+    /// Save state to a specific path.
+    ///
+    /// Creates parent directories if they don't exist.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use theman::core::state::State;
+    /// use tempfile::TempDir;
+    /// use std::fs;
+    ///
+    /// let temp = TempDir::new().unwrap();
+    /// let path = temp.path().join("nested/dir/state.json");
+    ///
+    /// // Parent directories are created automatically
+    /// State::new("catppuccin".to_string()).save_to(&path).unwrap();
+    /// assert!(path.exists());
+    ///
+    /// // State is saved as JSON
+    /// let content = fs::read_to_string(&path).unwrap();
+    /// assert!(content.contains("catppuccin"));
+    /// ```
     pub fn save_to(&self, path: &Path) -> Result<()> {
         // Ensure parent directory exists
         if let Some(parent) = path.parent() {

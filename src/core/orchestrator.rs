@@ -1,3 +1,47 @@
+//! Core orchestration logic for TheMan.
+//!
+//! The [`Orchestrator`] is the main entry point for loading profiles and
+//! applying themes to enrolled applications. It coordinates:
+//!
+//! - Loading and parsing configuration (`theman.yaml`)
+//! - Resolving profile variables with palette inheritance
+//! - Applying integrations (templates, symlinks, commands, scripts)
+//!
+//! # Architecture
+//!
+//! The orchestrator uses dependency injection for all I/O operations,
+//! making it fully testable:
+//!
+//! ```text
+//! Orchestrator<FS, TR, CE>
+//!   ├── FS: FileSystem     - Read/write files, create symlinks
+//!   ├── TR: TemplateRenderer - Render Jinja2 templates
+//!   └── CE: CommandExecutor  - Run shell commands and scripts
+//! ```
+//!
+//! # Example
+//!
+//! ```no_run
+//! use theman::adapters::filesystem::RealFileSystem;
+//! use theman::adapters::template::TeraAdapter;
+//! use theman::adapters::command::RealCommandExecutor;
+//! use theman::core::orchestrator::Orchestrator;
+//! use std::path::PathBuf;
+//!
+//! let orchestrator = Orchestrator::new(
+//!     RealFileSystem,
+//!     TeraAdapter::new(),
+//!     RealCommandExecutor,
+//!     PathBuf::from("/home/user/.config/theman"),
+//! );
+//!
+//! // Load a profile and apply to all enrolled apps
+//! let result = orchestrator.load_profile("nord").unwrap();
+//! if result.is_ok() {
+//!     println!("Loaded {} apps", result.success_count());
+//! }
+//! ```
+
 use anyhow::{bail, Context, Result};
 use serde_json::Value;
 use std::collections::{HashMap, HashSet};
@@ -13,6 +57,25 @@ use crate::core::traits::{CommandExecutor, FileSystem, TemplateRenderer};
 pub const SYSTEM_DATA_DIR: &str = "/usr/share/theman";
 
 /// Result of loading a profile, including any failures.
+///
+/// Even when some apps fail, the orchestrator continues processing
+/// the remaining apps. This struct captures both successes and failures
+/// so the caller can decide how to handle partial failures.
+///
+/// # Example
+///
+/// ```
+/// use theman::core::orchestrator::LoadResult;
+///
+/// // Simulate a result with one failure
+/// let result = LoadResult {
+///     succeeded: vec!["kitty".to_string(), "waybar".to_string()],
+///     failures: vec![],
+/// };
+///
+/// assert!(result.is_ok());
+/// assert_eq!(result.success_count(), 2);
+/// ```
 #[derive(Debug)]
 pub struct LoadResult {
     /// Apps that were successfully configured
@@ -24,7 +87,9 @@ pub struct LoadResult {
 /// A failure that occurred while applying an integration.
 #[derive(Debug)]
 pub struct AppFailure {
+    /// Name of the app that failed
     pub app_name: String,
+    /// Error message describing the failure
     pub error: String,
 }
 
@@ -45,6 +110,10 @@ impl LoadResult {
     }
 }
 
+/// The main orchestrator that loads profiles and applies themes.
+///
+/// Generic over filesystem, template renderer, and command executor
+/// to support both real I/O and testing with mocks.
 pub struct Orchestrator<FS, TR, CE> {
     fs: FS,
     template_renderer: TR,

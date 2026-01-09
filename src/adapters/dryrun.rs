@@ -1,3 +1,25 @@
+//! Dry-run adapters for previewing changes without side effects.
+//!
+//! These adapters implement the same traits as the real adapters but
+//! only log what would happen instead of actually performing I/O.
+//!
+//! # Usage
+//!
+//! Use these adapters with the `--dry-run` flag to preview theme changes:
+//!
+//! ```text
+//! $ theman load nord --dry-run
+//! INFO [dry-run] Would write to "/home/user/.config/kitty/.theman.conf":
+//! INFO [dry-run]   foreground #eceff4
+//! INFO [dry-run]   background #2e3440
+//! INFO [dry-run] Would run: pkill -USR1 kitty
+//! ```
+//!
+//! # Behavior
+//!
+//! - `DryRunFileSystem`: Reads real files (needed for templates) but only logs writes
+//! - `DryRunCommandExecutor`: Logs commands and scripts instead of executing them
+
 use crate::core::traits::{CommandExecutor, FileSystem};
 use anyhow::Result;
 use std::collections::HashMap;
@@ -6,6 +28,10 @@ use std::path::Path;
 use tracing::info;
 
 /// A FileSystem adapter that reads real files but only logs writes.
+///
+/// This allows the orchestrator to read config files and templates
+/// while previewing what would be written without actually modifying
+/// the filesystem.
 pub struct DryRunFileSystem;
 
 impl FileSystem for DryRunFileSystem {
@@ -49,6 +75,10 @@ impl FileSystem for DryRunFileSystem {
 }
 
 /// A CommandExecutor that logs commands instead of running them.
+///
+/// Shell commands and scripts are logged with their arguments and
+/// environment variables, allowing users to preview the exact
+/// operations that would be performed.
 pub struct DryRunCommandExecutor;
 
 impl CommandExecutor for DryRunCommandExecutor {
