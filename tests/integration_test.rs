@@ -62,8 +62,12 @@ fn test_end_to_end_flow() {
     let orchestrator = Orchestrator::new(fs_adapter, tera_adapter, cmd_adapter, config_dir.clone());
 
     // 4. Run Load
-    let result = orchestrator.load_profile("test-dark");
-    assert!(result.is_ok(), "Load profile failed: {:?}", result.err());
+    let load_result = orchestrator.load_profile("test-dark").unwrap();
+    assert!(
+        load_result.is_ok(),
+        "Apps failed: {:?}",
+        load_result.failures
+    );
 
     // 5. Verify Output
     let output_content = fs::read_to_string(&output_file).expect("Output file not found");
@@ -123,8 +127,12 @@ fn test_dry_run_does_not_write_files() {
     );
 
     // 4. Run Load
-    let result = orchestrator.load_profile("test-dark");
-    assert!(result.is_ok(), "Load profile failed: {:?}", result.err());
+    let load_result = orchestrator.load_profile("test-dark").unwrap();
+    assert!(
+        load_result.is_ok(),
+        "Apps failed: {:?}",
+        load_result.failures
+    );
 
     // 5. Verify output file was NOT created
     assert!(

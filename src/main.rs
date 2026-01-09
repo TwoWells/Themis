@@ -92,7 +92,7 @@ fn main() -> Result<()> {
     // 3. Run Command
     match cli.command {
         Commands::Load { profile, dry_run } => {
-            if dry_run {
+            let result = if dry_run {
                 info!("Running in dry-run mode");
                 let orchestrator = Orchestrator::new(
                     DryRunFileSystem,
@@ -100,7 +100,7 @@ fn main() -> Result<()> {
                     DryRunCommandExecutor,
                     config_dir,
                 );
-                orchestrator.load_profile(&profile)?;
+                orchestrator.load_profile(&profile)?
                 // Don't save state in dry-run mode
             } else {
                 let orchestrator = Orchestrator::new(
@@ -109,11 +109,18 @@ fn main() -> Result<()> {
                     RealCommandExecutor,
                     config_dir,
                 );
-                orchestrator.load_profile(&profile)?;
+                let result = orchestrator.load_profile(&profile)?;
 
-                // Save state after successful load
+                // Save state after load (even with partial failures)
                 let state = State::new(profile);
                 state.save()?;
+
+                result
+            };
+
+            // Exit with error code if any apps failed
+            if !result.is_ok() {
+                std::process::exit(1);
             }
         }
         Commands::Status => {

@@ -79,8 +79,12 @@ mod tests {
             "mode={{ mode }} bg={{ bg }} font={{ font }}",
         );
 
-        let result = orchestrator.load_profile("nord");
-        assert!(result.is_ok(), "Failed to load profile: {:?}", result.err());
+        let load_result = orchestrator.load_profile("nord").unwrap();
+        assert!(
+            load_result.is_ok(),
+            "Apps failed: {:?}",
+            load_result.failures
+        );
 
         // nord should have:
         // - mode: dark (from palette)
@@ -143,8 +147,12 @@ mod tests {
             "bg={{ bg }} font={{ font }} size={{ size }}",
         );
 
-        let result = orchestrator.load_profile("myprofile");
-        assert!(result.is_ok(), "Failed: {:?}", result.err());
+        let load_result = orchestrator.load_profile("myprofile").unwrap();
+        assert!(
+            load_result.is_ok(),
+            "Apps failed: {:?}",
+            load_result.failures
+        );
 
         let output = fs
             .read_to_string(&PathBuf::from("/config/out.conf"))
@@ -197,8 +205,12 @@ mod tests {
 
         fs.add_file("/config/template.j2", "bg={{ bg }}");
 
-        let result = orchestrator.load_profile("test");
-        assert!(result.is_ok(), "Failed: {:?}", result.err());
+        let load_result = orchestrator.load_profile("test").unwrap();
+        assert!(
+            load_result.is_ok(),
+            "Apps failed: {:?}",
+            load_result.failures
+        );
 
         let output = fs
             .read_to_string(&PathBuf::from("/config/out.conf"))
@@ -319,8 +331,12 @@ mod tests {
 
         fs.add_file("/config/template.j2", "color={{ color }}");
 
-        let result = orchestrator.load_profile("test");
-        assert!(result.is_ok(), "Failed: {:?}", result.err());
+        let load_result = orchestrator.load_profile("test").unwrap();
+        assert!(
+            load_result.is_ok(),
+            "Apps failed: {:?}",
+            load_result.failures
+        );
 
         let executed = cmd.executed.lock().unwrap();
         assert!(
@@ -357,8 +373,12 @@ mod tests {
 
         fs.add_file("/config/template.j2", "test");
 
-        let result = orchestrator.load_profile("test");
-        assert!(result.is_ok(), "Failed: {:?}", result.err());
+        let load_result = orchestrator.load_profile("test").unwrap();
+        assert!(
+            load_result.is_ok(),
+            "Apps failed: {:?}",
+            load_result.failures
+        );
 
         let executed = cmd.executed.lock().unwrap();
         assert!(
@@ -394,8 +414,12 @@ mod tests {
         "##,
         );
 
-        let result = orchestrator.load_profile("test");
-        assert!(result.is_ok(), "Failed: {:?}", result.err());
+        let load_result = orchestrator.load_profile("test").unwrap();
+        assert!(
+            load_result.is_ok(),
+            "Apps failed: {:?}",
+            load_result.failures
+        );
 
         let env = cmd.script_env.lock().unwrap();
         assert_eq!(
@@ -413,5 +437,93 @@ mod tests {
             Some(&"42".to_string()),
             "Number should stringify"
         );
+    }
+
+    #[test]
+    fn test_load_result_captures_failures() {
+        let (fs, orchestrator) = setup();
+
+        fs.add_file(
+            "/config/theman.yaml",
+            r##"
+            enroll:
+              goodapp:
+                type: template
+                input: /config/good.j2
+                output: /config/good.out
+              badapp:
+                type: template
+                input: /config/nonexistent.j2
+                output: /config/bad.out
+              anotherapp:
+                type: template
+                input: /config/good.j2
+                output: /config/another.out
+        "##,
+        );
+
+        fs.add_file(
+            "/config/profiles/test.yaml",
+            r##"
+            vars:
+              color: "#000000"
+        "##,
+        );
+
+        // Only add the good template, badapp's template doesn't exist
+        fs.add_file("/config/good.j2", "color={{ color }}");
+
+        let load_result = orchestrator.load_profile("test").unwrap();
+
+        // Should have partial success
+        assert!(!load_result.is_ok(), "Should have failures");
+        assert_eq!(load_result.success_count(), 2, "Two apps should succeed");
+        assert_eq!(load_result.failure_count(), 1, "One app should fail");
+
+        // Check failure details
+        let failure = &load_result.failures[0];
+        assert_eq!(failure.app_name, "badapp");
+        assert!(
+            failure.error.contains("not found"),
+            "Error should mention file not found: {}",
+            failure.error
+        );
+    }
+
+    #[test]
+    fn test_load_result_all_succeed() {
+        let (fs, orchestrator) = setup();
+
+        fs.add_file(
+            "/config/theman.yaml",
+            r##"
+            enroll:
+              app1:
+                type: template
+                input: /config/template.j2
+                output: /config/app1.out
+              app2:
+                type: template
+                input: /config/template.j2
+                output: /config/app2.out
+        "##,
+        );
+
+        fs.add_file(
+            "/config/profiles/test.yaml",
+            r##"
+            vars:
+              bg: "#123456"
+        "##,
+        );
+
+        fs.add_file("/config/template.j2", "bg={{ bg }}");
+
+        let load_result = orchestrator.load_profile("test").unwrap();
+
+        assert!(load_result.is_ok(), "All apps should succeed");
+        assert_eq!(load_result.success_count(), 2);
+        assert_eq!(load_result.failure_count(), 0);
+        assert!(load_result.failures.is_empty());
     }
 }

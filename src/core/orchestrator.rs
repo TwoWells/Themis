@@ -2,7 +2,7 @@ use anyhow::{bail, Context, Result};
 use serde_json::Value;
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
-use tracing::{debug, info, warn};
+use tracing::{debug, error, info, warn};
 
 use crate::core::config::Config;
 use crate::core::integration::Integration;
@@ -11,6 +11,39 @@ use crate::core::traits::{CommandExecutor, FileSystem, TemplateRenderer};
 
 /// System-wide data directory (palettes, templates)
 pub const SYSTEM_DATA_DIR: &str = "/usr/share/theman";
+
+/// Result of loading a profile, including any failures.
+#[derive(Debug)]
+pub struct LoadResult {
+    /// Apps that were successfully configured
+    pub succeeded: Vec<String>,
+    /// Apps that failed with their error messages
+    pub failures: Vec<AppFailure>,
+}
+
+/// A failure that occurred while applying an integration.
+#[derive(Debug)]
+pub struct AppFailure {
+    pub app_name: String,
+    pub error: String,
+}
+
+impl LoadResult {
+    /// Returns true if all apps were configured successfully.
+    pub fn is_ok(&self) -> bool {
+        self.failures.is_empty()
+    }
+
+    /// Returns the number of apps that failed.
+    pub fn failure_count(&self) -> usize {
+        self.failures.len()
+    }
+
+    /// Returns the number of apps that succeeded.
+    pub fn success_count(&self) -> usize {
+        self.succeeded.len()
+    }
+}
 
 pub struct Orchestrator<FS, TR, CE> {
     fs: FS,
@@ -56,7 +89,10 @@ where
     }
 
     /// Primary entry point: Load a profile and apply it to enrolled apps.
-    pub fn load_profile(&self, profile_name: &str) -> Result<()> {
+    ///
+    /// Returns a `LoadResult` containing which apps succeeded and which failed.
+    /// Early errors (config parsing, profile resolution) still return `Err`.
+    pub fn load_profile(&self, profile_name: &str) -> Result<LoadResult> {
         info!("Loading profile: {}", profile_name);
 
         // 1. Load Main Config (theman.yaml)
@@ -64,6 +100,10 @@ where
 
         // 2. Load and Resolve Profile (handling inheritance)
         let resolved_vars = self.resolve_profile_vars(profile_name)?;
+
+        // Collect successes and failures
+        let mut succeeded = Vec::new();
+        let mut failures = Vec::new();
 
         // 3. Iterate Enrolled Apps
         for (app_name, integration) in &config.enroll {
@@ -82,16 +122,45 @@ where
             context.insert("app_name".to_string(), Value::String(app_name.to_string()));
 
             // 5. Execute Integration
-            if let Err(e) = self.apply_integration(integration, &context) {
-                warn!("Failed to apply integration for {}: {:?}", app_name, e);
-                // We continue to the next app instead of crashing
+            match self.apply_integration(integration, &context) {
+                Ok(()) => {
+                    succeeded.push(app_name.clone());
+                }
+                Err(e) => {
+                    error!("Failed to apply integration for {}: {:?}", app_name, e);
+                    failures.push(AppFailure {
+                        app_name: app_name.clone(),
+                        error: format!("{:?}", e),
+                    });
+                }
             }
         }
 
-        // 6. Save State (TODO)
+        // 6. Print Summary
+        let result = LoadResult {
+            succeeded,
+            failures,
+        };
 
-        info!("Profile '{}' loaded successfully", profile_name);
-        Ok(())
+        if result.is_ok() {
+            info!(
+                "Profile '{}' loaded successfully ({} apps)",
+                profile_name,
+                result.success_count()
+            );
+        } else {
+            error!(
+                "Profile '{}' loaded with errors: {}/{} apps failed",
+                profile_name,
+                result.failure_count(),
+                result.failure_count() + result.success_count()
+            );
+            for failure in &result.failures {
+                error!("  - {}: {}", failure.app_name, failure.error);
+            }
+        }
+
+        Ok(result)
     }
 
     fn load_config(&self) -> Result<Config> {
