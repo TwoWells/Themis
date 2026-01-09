@@ -11,8 +11,10 @@
 .idea/
 *.swp
 
-# Gemini Agent
+# AI Agent Notes
+CLAUDE.md
 GEMINI.md
+TODO.md
 
 
 # Added by cargo
