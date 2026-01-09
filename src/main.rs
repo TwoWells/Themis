@@ -1,6 +1,8 @@
 use anyhow::{Context, Result};
-use clap::{Parser, Subcommand};
+use clap::{CommandFactory, Parser, Subcommand};
+use clap_complete::{generate, Shell};
 use directories::ProjectDirs;
+use std::io;
 use std::path::PathBuf;
 use tracing::{debug, info, Level};
 use tracing_subscriber::FmtSubscriber;
@@ -52,6 +54,13 @@ enum Commands {
 
     /// Check app configurations for proper setup
     Doctor,
+
+    /// Generate shell completions
+    Completions {
+        /// Shell to generate completions for
+        #[arg(value_enum)]
+        shell: Shell,
+    },
 }
 
 fn main() -> Result<()> {
@@ -125,6 +134,9 @@ fn main() -> Result<()> {
             if !result.is_healthy() {
                 std::process::exit(1);
             }
+        }
+        Commands::Completions { shell } => {
+            generate(shell, &mut Cli::command(), "theman", &mut io::stdout());
         }
     }
 

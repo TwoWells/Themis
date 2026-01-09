@@ -585,3 +585,60 @@ fn test_status_respects_xdg_state_home() {
         stdout
     );
 }
+
+#[test]
+fn test_completions_bash() {
+    let output = std::process::Command::new(env!("CARGO_BIN_EXE_theman"))
+        .args(["completions", "bash"])
+        .output()
+        .unwrap();
+
+    assert!(
+        output.status.success(),
+        "Completions command should succeed"
+    );
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(
+        stdout.contains("_theman()"),
+        "Bash completions should contain function: {}",
+        stdout
+    );
+}
+
+#[test]
+fn test_completions_zsh() {
+    let output = std::process::Command::new(env!("CARGO_BIN_EXE_theman"))
+        .args(["completions", "zsh"])
+        .output()
+        .unwrap();
+
+    assert!(
+        output.status.success(),
+        "Completions command should succeed"
+    );
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(
+        stdout.contains("#compdef theman"),
+        "Zsh completions should contain compdef: {}",
+        stdout
+    );
+}
+
+#[test]
+fn test_completions_fish() {
+    let output = std::process::Command::new(env!("CARGO_BIN_EXE_theman"))
+        .args(["completions", "fish"])
+        .output()
+        .unwrap();
+
+    assert!(
+        output.status.success(),
+        "Completions command should succeed"
+    );
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(
+        stdout.contains("complete -c theman"),
+        "Fish completions should contain complete command: {}",
+        stdout
+    );
+}

@@ -17,10 +17,42 @@ the _who, what, and when_ of applying themes.
 
 ## Installation
 
+### From source
+
+Requires [Rust](https://rustup.rs/) 1.70+.
+
 ```bash
-cargo build --release
-cp target/release/theman ~/.local/bin/
+git clone https://github.com/yourusername/theman.git
+cd theman
+
+# User install (no sudo, installs to ~/.local)
+make install PREFIX=~/.local
+
+# System install (requires sudo, installs to /usr/local)
+sudo make install
 ```
+
+This installs the binary and shell completions for bash, zsh, and fish.
+
+For user install, ensure `~/.local/bin` is in your `PATH`.
+
+To uninstall:
+
+```bash
+# User uninstall
+make uninstall PREFIX=~/.local
+
+# System uninstall
+sudo make uninstall
+```
+
+### Arch Linux (AUR)
+
+Coming soon.
+
+### Nix
+
+Coming soon.
 
 ## Quick Start
 
@@ -167,6 +199,24 @@ All profile variables are passed as `THEMAN_<VAR>` environment variables.
 | `init`                     | Create initial configuration structure               |
 | `verify`                   | Validate configuration and profiles                  |
 | `doctor`                   | Check app configurations for proper include patterns |
+| `completions <SHELL>`      | Generate shell completions (bash, zsh, fish)         |
+
+## Shell Completions
+
+If you used `sudo make install`, completions are already installed system-wide.
+
+For manual setup (or if you used `PREFIX=~/.local`):
+
+```bash
+# Bash (add to ~/.bashrc)
+eval "$(theman completions bash)"
+
+# Zsh (add to ~/.zshrc)
+eval "$(theman completions zsh)"
+
+# Fish (add to ~/.config/fish/config.fish)
+theman completions fish | source
+```
 
 ## App Setup
 
