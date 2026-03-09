@@ -1,4 +1,7 @@
-# Profile Design (The Blueprint)
+---
+title: Profile Design
+description: Internal design document for Themis profiles
+---
 
 ## Overview
 
@@ -11,7 +14,7 @@ Truth" for color palettes, font choices, and asset paths.
 ## 1. File Structure
 
 Profiles are stored as YAML (or TOML) files in the user's config directory:
-`~/.config/theman/profiles/*.yaml`
+`~/.config/themis/profiles/*.yaml`
 
 ## 2. Schema
 
@@ -34,7 +37,7 @@ vars:
 ## 3. Usage
 
 ```bash
-theman load nord       # Loads profiles/nord.yaml
-theman load dark       # Loads profiles/dark.yaml
-theman load work-mode  # Loads profiles/work-mode.yaml
+themis load nord       # Loads profiles/nord.yaml
+themis load dark       # Loads profiles/dark.yaml
+themis load work-mode  # Loads profiles/work-mode.yaml
 ```

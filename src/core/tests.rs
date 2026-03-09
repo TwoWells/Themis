@@ -40,9 +40,9 @@ mod tests {
     fn test_profile_includes_palette() {
         let (fs, orchestrator) = setup();
 
-        // theman.yaml
+        // themis.yaml
         fs.add_file(
-            "/config/theman.yaml",
+            "/config/themis.yaml",
             r##"
             enroll:
               kitty:
@@ -101,7 +101,7 @@ mod tests {
         let (fs, orchestrator) = setup();
 
         fs.add_file(
-            "/config/theman.yaml",
+            "/config/themis.yaml",
             r##"
             enroll:
               kitty:
@@ -168,7 +168,7 @@ mod tests {
         let (fs, orchestrator) = setup();
 
         fs.add_file(
-            "/config/theman.yaml",
+            "/config/themis.yaml",
             r##"
             enroll:
               kitty:
@@ -224,7 +224,7 @@ mod tests {
         let (fs, orchestrator) = setup();
 
         fs.add_file(
-            "/config/theman.yaml",
+            "/config/themis.yaml",
             r##"
             enroll: {}
         "##,
@@ -271,7 +271,7 @@ mod tests {
         let (fs, orchestrator) = setup();
 
         fs.add_file(
-            "/config/theman.yaml",
+            "/config/themis.yaml",
             r##"
             enroll: {}
         "##,
@@ -308,7 +308,7 @@ mod tests {
         let (fs, cmd, orchestrator) = setup_with_executor();
 
         fs.add_file(
-            "/config/theman.yaml",
+            "/config/themis.yaml",
             r##"
             enroll:
               waybar:
@@ -351,7 +351,7 @@ mod tests {
         let (fs, cmd, orchestrator) = setup_with_executor();
 
         fs.add_file(
-            "/config/theman.yaml",
+            "/config/themis.yaml",
             r##"
             enroll:
               kitty:
@@ -393,7 +393,7 @@ mod tests {
         let (fs, cmd, orchestrator) = setup_with_executor();
 
         fs.add_file(
-            "/config/theman.yaml",
+            "/config/themis.yaml",
             r##"
             enroll:
               myapp:
@@ -423,17 +423,17 @@ mod tests {
 
         let env = cmd.script_env.lock().unwrap();
         assert_eq!(
-            env.get("THEMAN_COLORS"),
+            env.get("THEMIS_COLORS"),
             Some(&"#111111:#222222:#333333".to_string()),
             "Array should be colon-delimited"
         );
         assert_eq!(
-            env.get("THEMAN_SINGLE"),
+            env.get("THEMIS_SINGLE"),
             Some(&"value".to_string()),
             "String should pass through"
         );
         assert_eq!(
-            env.get("THEMAN_NUMBER"),
+            env.get("THEMIS_NUMBER"),
             Some(&"42".to_string()),
             "Number should stringify"
         );
@@ -444,7 +444,7 @@ mod tests {
         let (fs, orchestrator) = setup();
 
         fs.add_file(
-            "/config/theman.yaml",
+            "/config/themis.yaml",
             r##"
             enroll:
               goodapp:
@@ -495,7 +495,7 @@ mod tests {
         let (fs, orchestrator) = setup();
 
         fs.add_file(
-            "/config/theman.yaml",
+            "/config/themis.yaml",
             r##"
             enroll:
               app1:

@@ -35,21 +35,21 @@ impl VerifyResult {
 pub fn run(config_dir: &Path, system_dir: &Path) -> Result<VerifyResult> {
     let mut result = VerifyResult::new();
 
-    info!("Verifying TheMan configuration...");
+    info!("Verifying Themis configuration...");
 
     // 1. Check config file exists and is valid YAML
-    let config_file = config_dir.join("theman.yaml");
+    let config_file = config_dir.join("themis.yaml");
     if !config_file.exists() {
         result.error(format!(
-            "Config file not found: {:?}\nRun 'theman init' to create it.",
+            "Config file not found: {:?}\nRun 'themis init' to create it.",
             config_file
         ));
         return Ok(result);
     }
 
     let config: Config = match std::fs::read_to_string(&config_file)
-        .context("Failed to read theman.yaml")
-        .and_then(|content| serde_yaml::from_str(&content).context("Failed to parse theman.yaml"))
+        .context("Failed to read themis.yaml")
+        .and_then(|content| serde_yaml::from_str(&content).context("Failed to parse themis.yaml"))
     {
         Ok(c) => c,
         Err(e) => {

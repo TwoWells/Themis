@@ -8,8 +8,8 @@
 //! Use these adapters with the `--dry-run` flag to preview theme changes:
 //!
 //! ```text
-//! $ theman load nord --dry-run
-//! INFO [dry-run] Would write to "/home/user/.config/kitty/.theman.conf":
+//! $ themis load nord --dry-run
+//! INFO [dry-run] Would write to "/home/user/.config/kitty/.themis.conf":
 //! INFO [dry-run]   foreground #eceff4
 //! INFO [dry-run]   background #2e3440
 //! INFO [dry-run] Would run: pkill -USR1 kitty

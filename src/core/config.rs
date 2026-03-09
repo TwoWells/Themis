@@ -1,19 +1,19 @@
-//! Configuration schema for TheMan.
+//! Configuration schema for Themis.
 //!
-//! The main configuration file (`theman.yaml`) defines which applications
+//! The main configuration file (`themis.yaml`) defines which applications
 //! are enrolled and how they should be themed.
 //!
 //! # Example
 //!
 //! ```
-//! use theman::core::config::Config;
+//! use themis::core::config::Config;
 //!
 //! let yaml = r#"
 //! enroll:
 //!   kitty:
 //!     type: template
-//!     input: "~/.config/theman/templates/kitty.j2"
-//!     output: "~/.config/kitty/.theman.conf"
+//!     input: "~/.config/themis/templates/kitty.j2"
+//!     output: "~/.config/kitty/.themis.conf"
 //!   gtk:
 //!     type: command
 //!     commands:
@@ -40,7 +40,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
 
-/// Main configuration for TheMan, loaded from `theman.yaml`.
+/// Main configuration for Themis, loaded from `themis.yaml`.
 ///
 /// # Fields
 ///
@@ -72,7 +72,7 @@ impl Config {
     /// # Example
     ///
     /// ```
-    /// use theman::core::config::Config;
+    /// use themis::core::config::Config;
     ///
     /// let yaml = r#"
     /// enroll: {}

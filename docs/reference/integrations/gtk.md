@@ -1,13 +1,16 @@
-# GTK Integration
+---
+title: GTK
+description: GTK/GNOME theming via gsettings commands
+---
 
-## 1. Mechanism
+## Mechanism
 
 GTK apps (LibAdwaita, GTK3/4) do not read config files directly for theming. They rely on the
 **DConf** database (GNOME Settings Daemon). Changes must be made via `gsettings` commands or IPC
 calls. **Persistence:** Changes made via `gsettings` are written to disk (`~/.config/dconf/user`)
 and persist across reboots.
 
-## 2. TheMan's Approach
+## 2. Themis's Approach
 
 We use the **Exec** pattern. We run a series of `gsettings` commands to update the relevant keys in
 the DConf database. These changes apply immediately to running applications.

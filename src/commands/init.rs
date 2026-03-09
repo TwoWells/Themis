@@ -3,8 +3,8 @@ use std::fs;
 use std::path::Path;
 use tracing::info;
 
-const SAMPLE_CONFIG: &str = r#"# TheMan Configuration
-# See: https://github.com/your-repo/theman
+const SAMPLE_CONFIG: &str = r#"# Themis Configuration
+# See: https://github.com/your-repo/themis
 
 # Enroll applications to be themed.
 # Each app needs an integration type: template, symlink, command, or script.
@@ -12,13 +12,13 @@ enroll:
   # Example: Kitty terminal (uses template + live reload)
   # kitty:
   #   type: template
-  #   input: "~/.config/theman/templates/kitty.j2"
-  #   output: "~/.config/kitty/.theman.conf"
+  #   input: "~/.config/themis/templates/kitty.j2"
+  #   output: "~/.config/kitty/.themis.conf"
   #
   # Example: Waybar (uses template + signal reload)
   # waybar:
   #   type: template
-  #   input: "~/.config/theman/templates/waybar.css.j2"
+  #   input: "~/.config/themis/templates/waybar.css.j2"
   #   output: "~/.config/waybar/colors.css"
   #   reload_signal: SIGUSR2
   #
@@ -80,14 +80,14 @@ vars:
 
 pub fn run(config_dir: &Path) -> Result<()> {
     // Check if already initialized
-    let config_file = config_dir.join("theman.yaml");
+    let config_file = config_dir.join("themis.yaml");
     if config_file.exists() {
         info!("Configuration already exists at {:?}", config_dir);
         info!("To reinitialize, remove the directory first.");
         return Ok(());
     }
 
-    info!("Initializing TheMan configuration...");
+    info!("Initializing Themis configuration...");
 
     // Create directories
     let dirs = ["profiles", "palettes", "templates"];
@@ -99,7 +99,7 @@ pub fn run(config_dir: &Path) -> Result<()> {
     }
 
     // Write sample config
-    fs::write(&config_file, SAMPLE_CONFIG).context("Failed to write theman.yaml")?;
+    fs::write(&config_file, SAMPLE_CONFIG).context("Failed to write themis.yaml")?;
     info!("Created {:?}", config_file);
 
     // Write sample profile
@@ -108,12 +108,12 @@ pub fn run(config_dir: &Path) -> Result<()> {
     info!("Created {:?}", profile_path);
 
     info!("");
-    info!("TheMan initialized successfully!");
+    info!("Themis initialized successfully!");
     info!("");
     info!("Next steps:");
     info!("  1. Edit {:?} to enroll your apps", config_file);
     info!("  2. Edit {:?} or create a new profile", profile_path);
-    info!("  3. Run: theman load example");
+    info!("  3. Run: themis load example");
 
     Ok(())
 }

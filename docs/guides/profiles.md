@@ -1,11 +1,14 @@
-# Profiles and Palettes
+---
+title: Profiles and Palettes
+description: Learn about Themis's profile and palette inheritance system
+---
 
-Profiles are the core of TheMan's theming system. A profile defines variables that get applied to
+Profiles are the core of Themis's theming system. A profile defines variables that get applied to
 all your enrolled applications.
 
 ## Profile Structure
 
-A profile is a YAML file in `~/.config/theman/profiles/`:
+A profile is a YAML file in `~/.config/themis/profiles/`:
 
 ```yaml
 # profiles/my-dark.yaml
@@ -23,8 +26,8 @@ Variables can be any type: strings, numbers, booleans, or even arrays.
 
 Palettes are reusable sets of color variables. They're stored in:
 
-- User palettes: `~/.config/theman/palettes/`
-- System palettes: `/usr/share/theman/palettes/`
+- User palettes: `~/.config/themis/palettes/`
+- System palettes: `/usr/share/themis/palettes/`
 
 A palette has the same structure as a profile:
 
@@ -85,19 +88,19 @@ profile)
 
 ## User vs System Palettes
 
-When you `include: nord`, TheMan searches:
+When you `include: nord`, Themis searches:
 
-1. `~/.config/theman/palettes/nord.yaml` (user palette)
-2. `/usr/share/theman/palettes/nord.yaml` (system palette)
+1. `~/.config/themis/palettes/nord.yaml` (user palette)
+2. `/usr/share/themis/palettes/nord.yaml` (system palette)
 
 User palettes take precedence, allowing you to customize system palettes.
 
 ## Config Overrides
 
-You can override variables in `theman.yaml` without modifying profiles:
+You can override variables in `themis.yaml` without modifying profiles:
 
 ```yaml
-# theman.yaml
+# themis.yaml
 enroll:
   kitty:
     type: template
@@ -120,7 +123,7 @@ Override precedence (highest to lowest):
 
 ## Circular Inheritance Detection
 
-TheMan detects and prevents circular includes:
+Themis detects and prevents circular includes:
 
 ```yaml
 # This will error: "Circular include detected"

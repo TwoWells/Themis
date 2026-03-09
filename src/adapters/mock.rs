@@ -1,7 +1,7 @@
 #![allow(dead_code)] // Mocks might have unused methods in some tests
 
 use crate::core::traits::{CommandExecutor, FileSystem, TemplateRenderer};
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use serde_json::Value;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};

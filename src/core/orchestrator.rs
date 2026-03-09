@@ -1,9 +1,9 @@
-//! Core orchestration logic for TheMan.
+//! Core orchestration logic for Themis.
 //!
 //! The [`Orchestrator`] is the main entry point for loading profiles and
 //! applying themes to enrolled applications. It coordinates:
 //!
-//! - Loading and parsing configuration (`theman.yaml`)
+//! - Loading and parsing configuration (`themis.yaml`)
 //! - Resolving profile variables with palette inheritance
 //! - Applying integrations (templates, symlinks, commands, scripts)
 //!
@@ -22,17 +22,17 @@
 //! # Example
 //!
 //! ```no_run
-//! use theman::adapters::filesystem::RealFileSystem;
-//! use theman::adapters::template::TeraAdapter;
-//! use theman::adapters::command::RealCommandExecutor;
-//! use theman::core::orchestrator::Orchestrator;
+//! use themis::adapters::filesystem::RealFileSystem;
+//! use themis::adapters::template::TeraAdapter;
+//! use themis::adapters::command::RealCommandExecutor;
+//! use themis::core::orchestrator::Orchestrator;
 //! use std::path::PathBuf;
 //!
 //! let orchestrator = Orchestrator::new(
 //!     RealFileSystem,
 //!     TeraAdapter::new(),
 //!     RealCommandExecutor,
-//!     PathBuf::from("/home/user/.config/theman"),
+//!     PathBuf::from("/home/user/.config/themis"),
 //! );
 //!
 //! // Load a profile and apply to all enrolled apps
@@ -42,7 +42,7 @@
 //! }
 //! ```
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use serde_json::Value;
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
@@ -54,7 +54,7 @@ use crate::core::profile::Profile;
 use crate::core::traits::{CommandExecutor, FileSystem, TemplateRenderer};
 
 /// System-wide data directory (palettes, templates)
-pub const SYSTEM_DATA_DIR: &str = "/usr/share/theman";
+pub const SYSTEM_DATA_DIR: &str = "/usr/share/themis";
 
 /// Result of loading a profile, including any failures.
 ///
@@ -65,7 +65,7 @@ pub const SYSTEM_DATA_DIR: &str = "/usr/share/theman";
 /// # Example
 ///
 /// ```
-/// use theman::core::orchestrator::LoadResult;
+/// use themis::core::orchestrator::LoadResult;
 ///
 /// // Simulate a result with one failure
 /// let result = LoadResult {
@@ -118,9 +118,9 @@ pub struct Orchestrator<FS, TR, CE> {
     fs: FS,
     template_renderer: TR,
     command_executor: CE,
-    /// User config directory (~/.config/theman)
+    /// User config directory (~/.config/themis)
     config_dir: PathBuf,
-    /// System data directory (/usr/share/theman)
+    /// System data directory (/usr/share/themis)
     system_dir: PathBuf,
 }
 
@@ -164,7 +164,7 @@ where
     pub fn load_profile(&self, profile_name: &str) -> Result<LoadResult> {
         info!("Loading profile: {}", profile_name);
 
-        // 1. Load Main Config (theman.yaml)
+        // 1. Load Main Config (themis.yaml)
         let config = self.load_config()?;
 
         // 2. Load and Resolve Profile (handling inheritance)
@@ -233,13 +233,13 @@ where
     }
 
     fn load_config(&self) -> Result<Config> {
-        let config_path = self.config_dir.join("theman.yaml");
+        let config_path = self.config_dir.join("themis.yaml");
         let content = self
             .fs
             .read_to_string(&config_path)
-            .context("Failed to read theman.yaml")?;
+            .context("Failed to read themis.yaml")?;
 
-        serde_yaml::from_str(&content).context("Failed to parse theman.yaml")
+        serde_yaml::from_str(&content).context("Failed to parse themis.yaml")
     }
 
     fn resolve_profile_vars(&self, profile_name: &str) -> Result<HashMap<String, Value>> {
@@ -433,10 +433,10 @@ where
                     rendered_args.push(self.template_renderer.render(arg, context)?);
                 }
 
-                // Prepare Env: Prefix everything with THEMAN_
+                // Prepare Env: Prefix everything with THEMIS_
                 let mut env_vars = HashMap::new();
                 for (k, v) in context {
-                    let env_key = format!("THEMAN_{}", k.to_uppercase());
+                    let env_key = format!("THEMIS_{}", k.to_uppercase());
                     match v {
                         Value::String(s) => {
                             env_vars.insert(env_key, s.clone());

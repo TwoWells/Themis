@@ -1,4 +1,4 @@
-//! Profile and palette definitions for TheMan.
+//! Profile and palette definitions for Themis.
 //!
 //! Profiles define theme configurations with variable inheritance.
 //! A profile can include a palette (or another profile), inheriting
@@ -7,7 +7,7 @@
 //! # Example
 //!
 //! ```
-//! use theman::core::profile::Profile;
+//! use themis::core::profile::Profile;
 //!
 //! // A simple profile with color variables
 //! let yaml = "
@@ -26,7 +26,7 @@
 //! Profiles can include palettes for inheritance:
 //!
 //! ```
-//! use theman::core::profile::Profile;
+//! use themis::core::profile::Profile;
 //!
 //! // Profile that includes a palette and overrides one variable
 //! let yaml = "
@@ -65,8 +65,8 @@ pub struct Profile {
 /// A Palette is structurally identical to a Profile.
 ///
 /// Palettes define color variables and can include other palettes.
-/// They're typically stored in `~/.config/theman/palettes/` or
-/// `/usr/share/theman/palettes/`.
+/// They're typically stored in `~/.config/themis/palettes/` or
+/// `/usr/share/themis/palettes/`.
 pub type Palette = Profile;
 
 /// Optional metadata for a profile.

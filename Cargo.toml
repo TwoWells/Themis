@@ -1,7 +1,13 @@
 [package]
-name = "theman"
+name = "themis"
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
+description = "A theme orchestrator CLI for Linux"
+repository = "https://github.com/m-wells/themis"
+homepage = "https://github.com/m-wells/themis"
+license = "GPL-3.0-or-later"
+keywords = ["theme", "linux", "cli", "dotfiles"]
+categories = ["command-line-utilities"]
 
 [dependencies]
 clap = { version = "4.5", features = ["derive", "env"] }

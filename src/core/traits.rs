@@ -18,7 +18,7 @@ pub trait CommandExecutor {
 
     /// Run an external script with arguments and environment variables
     fn run_script(&self, path: &Path, args: &[String], env: &HashMap<String, String>)
-        -> Result<()>;
+    -> Result<()>;
 }
 
 /// Abstract interface for File I/O.

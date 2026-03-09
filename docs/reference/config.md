@@ -1,19 +1,22 @@
-# Configuration Reference
+---
+title: Configuration Reference
+description: Complete reference for Themis configuration files
+---
 
-Complete reference for TheMan configuration files.
+Complete reference for Themis configuration files.
 
 ## File Locations
 
 | File            | Location                                 |
 | --------------- | ---------------------------------------- |
-| Main config     | `~/.config/theman/theman.yaml`           |
-| Profiles        | `~/.config/theman/profiles/<name>.yaml`  |
-| User palettes   | `~/.config/theman/palettes/<name>.yaml`  |
-| System palettes | `/usr/share/theman/palettes/<name>.yaml` |
-| Templates       | `~/.config/theman/templates/<name>.j2`   |
-| State           | `~/.local/state/theman/state.json`       |
+| Main config     | `~/.config/themis/themis.yaml`           |
+| Profiles        | `~/.config/themis/profiles/<name>.yaml`  |
+| User palettes   | `~/.config/themis/palettes/<name>.yaml`  |
+| System palettes | `/usr/share/themis/palettes/<name>.yaml` |
+| Templates       | `~/.config/themis/templates/<name>.j2`   |
+| State           | `~/.local/state/themis/state.json`       |
 
-## theman.yaml
+## themis.yaml
 
 The main configuration file defines enrolled applications and overrides.
 
@@ -41,8 +44,8 @@ overrides:
 enroll:
   kitty:
     type: template
-    input: "~/.config/theman/templates/kitty.j2" # Required
-    output: "~/.config/kitty/.theman.conf" # Required
+    input: "~/.config/themis/templates/kitty.j2" # Required
+    output: "~/.config/kitty/.themis.conf" # Required
     reload_cmd: "pkill -SIGUSR1 kitty" # Optional
     reload_signal: SIGUSR1 # Optional
 ```
@@ -53,7 +56,7 @@ enroll:
 enroll:
   alacritty:
     type: symlink
-    source: "~/.config/theman/configs/alacritty-{{ mode }}.toml" # Required
+    source: "~/.config/themis/configs/alacritty-{{ mode }}.toml" # Required
     target: "~/.config/alacritty/colors.toml" # Required
     reload_cmd: "touch ~/.config/alacritty/alacritty.toml" # Optional
 ```
@@ -75,7 +78,7 @@ enroll:
 enroll:
   custom:
     type: script
-    path: "~/.config/theman/scripts/custom.sh" # Required
+    path: "~/.config/themis/scripts/custom.sh" # Required
     args: ["--mode", "{{ mode }}"] # Optional
     env: # Optional
       CUSTOM_VAR: "value"
@@ -155,19 +158,19 @@ The state file tracks the current profile (managed automatically):
 
 All paths support tilde expansion:
 
-- `~/.config/theman/...` expands to `/home/user/.config/theman/...`
+- `~/.config/themis/...` expands to `/home/user/.config/themis/...`
 
 ## Variable Interpolation
 
 Templates and some fields support Jinja2 variable interpolation:
 
 ```yaml
-# In theman.yaml
-source: "~/.config/theman/configs/alacritty-{{ mode }}.toml"
+# In themis.yaml
+source: "~/.config/themis/configs/alacritty-{{ mode }}.toml"
 
 # With profile vars:
 # mode: dark
-# Expands to: ~/.config/theman/configs/alacritty-dark.toml
+# Expands to: ~/.config/themis/configs/alacritty-dark.toml
 ```
 
 Supported in:

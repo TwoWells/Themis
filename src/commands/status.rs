@@ -27,7 +27,7 @@ pub fn run() -> Result<StatusResult> {
             Ok(StatusResult { profile, last_run })
         }
         None => {
-            info!("No state found. Run 'theman load <PROFILE>' to load a profile.");
+            info!("No state found. Run 'themis load <PROFILE>' to load a profile.");
             Ok(StatusResult {
                 profile: None,
                 last_run: None,

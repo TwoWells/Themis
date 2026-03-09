@@ -1,6 +1,9 @@
-# CLI Reference
+---
+title: CLI Reference
+description: Complete reference for all Themis commands and options
+---
 
-Complete reference for all TheMan commands and options.
+Complete reference for all Themis commands and options.
 
 ## Global Options
 
@@ -8,20 +11,20 @@ These options work with any command:
 
 | Option                | Description                                            |
 | --------------------- | ------------------------------------------------------ |
-| `-c, --config <PATH>` | Path to config directory (default: `~/.config/theman`) |
+| `-c, --config <PATH>` | Path to config directory (default: `~/.config/themis`) |
 | `-v, --verbose`       | Enable debug logging                                   |
 | `--help`              | Show help for any command                              |
 | `--version`           | Show version                                           |
 
 ## Commands
 
-### `theman load <PROFILE>`
+### `themis load <PROFILE>`
 
 Load a profile and apply it to all enrolled applications.
 
 ```bash
-theman load nord
-theman load my-dark --dry-run
+themis load nord
+themis load my-dark --dry-run
 ```
 
 **Arguments:**
@@ -39,12 +42,12 @@ theman load my-dark --dry-run
 - `0` - All apps configured successfully
 - `1` - One or more apps failed (partial success)
 
-### `theman status`
+### `themis status`
 
 Show the currently loaded profile.
 
 ```bash
-theman status
+themis status
 ```
 
 **Output:**
@@ -57,22 +60,22 @@ Last loaded: 2024-01-15T10:30:00Z
 If no profile has been loaded:
 
 ```
-No state found. Run 'theman load <profile>' first.
+No state found. Run 'themis load <profile>' first.
 ```
 
-### `theman init`
+### `themis init`
 
 Create the initial configuration directory structure.
 
 ```bash
-theman init
+themis init
 ```
 
 **Creates:**
 
 ```
-~/.config/theman/
-├── theman.yaml           # Main config with example enrollment
+~/.config/themis/
+├── themis.yaml           # Main config with example enrollment
 ├── profiles/
 │   └── example.yaml      # Sample profile
 ├── palettes/             # Empty directory for user palettes
@@ -81,12 +84,12 @@ theman init
 
 Running `init` again is safe - it won't overwrite existing files.
 
-### `theman verify`
+### `themis verify`
 
 Validate configuration files and references.
 
 ```bash
-theman verify
+themis verify
 ```
 
 **Checks:**
@@ -101,23 +104,23 @@ theman verify
 - `0` - All checks passed
 - `1` - Errors found
 
-### `theman doctor`
+### `themis doctor`
 
 Check that enrolled applications have proper include patterns configured.
 
 ```bash
-theman doctor
+themis doctor
 ```
 
 **Checks for each enrolled app:**
 
 - App's main config file exists
-- Config includes the TheMan-generated partial
+- Config includes the Themis-generated partial
 
 **Example Output:**
 
 ```
-kitty: ✓ includes .theman.conf
+kitty: ✓ includes .themis.conf
 waybar: ✗ missing include for style.css
 ```
 
@@ -126,14 +129,14 @@ waybar: ✗ missing include for style.css
 - `0` - All apps properly configured
 - `1` - One or more apps missing includes
 
-### `theman completions <SHELL>`
+### `themis completions <SHELL>`
 
 Generate shell completions.
 
 ```bash
-theman completions bash
-theman completions zsh
-theman completions fish
+themis completions bash
+themis completions zsh
+themis completions fish
 ```
 
 **Arguments:**
@@ -144,20 +147,20 @@ theman completions fish
 
 ```bash
 # Bash
-eval "$(theman completions bash)"
+eval "$(themis completions bash)"
 
 # Zsh
-eval "$(theman completions zsh)"
+eval "$(themis completions zsh)"
 
 # Fish
-theman completions fish | source
+themis completions fish | source
 ```
 
 ## Environment Variables
 
 | Variable            | Description                                    |
 | ------------------- | ---------------------------------------------- |
-| `THEMAN_CONFIG_DIR` | Override config directory (same as `-c`)       |
+| `THEMIS_CONFIG_DIR` | Override config directory (same as `-c`)       |
 | `XDG_CONFIG_HOME`   | Base for config dir (default: `~/.config`)     |
 | `XDG_STATE_HOME`    | Base for state dir (default: `~/.local/state`) |
 
@@ -165,24 +168,24 @@ theman completions fish | source
 
 ```bash
 # Initialize and create first profile
-theman init
-vim ~/.config/theman/profiles/dark.yaml
+themis init
+vim ~/.config/themis/profiles/dark.yaml
 
 # Preview changes
-theman load dark --dry-run
+themis load dark --dry-run
 
 # Apply profile
-theman load dark
+themis load dark
 
 # Check status
-theman status
+themis status
 
 # Validate configuration
-theman verify
+themis verify
 
 # Check app setup
-theman doctor
+themis doctor
 
 # Use custom config directory
-theman -c ~/my-themes load special
+themis -c ~/my-themes load special
 ```

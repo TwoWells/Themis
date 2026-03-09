@@ -1,4 +1,7 @@
-# CLI Design
+---
+title: CLI Design
+description: Internal design document for Themis CLI
+---
 
 ## Overview
 
@@ -9,7 +12,7 @@ fast, and adhere to standard Unix conventions.
 
 - `-v, --verbose`: Enable debug logging (INFO/DEBUG levels).
 - `-q, --quiet`: Suppress all output except errors.
-- `-c, --config <PATH>`: Path to a custom `theman.yaml` (default: `~/.config/theman/theman.yaml`).
+- `-c, --config <PATH>`: Path to a custom `themis.yaml` (default: `~/.config/themis/themis.yaml`).
 - `--dry-run`: Simulate actions (rendering templates, resolving vars) without writing to disk or
   executing commands.
 
@@ -20,12 +23,12 @@ fast, and adhere to standard Unix conventions.
 Applies a specific profile.
 
 ```bash
-theman load <PROFILE_NAME>
+themis load <PROFILE_NAME>
 ```
 
 - **Arguments:**
   - `<PROFILE_NAME>`: The name of the profile file (without extension) in
-    `~/.config/theman/profiles/`.
+    `~/.config/themis/profiles/`.
 - **Options:**
   - `--dry-run`: Simulate actions.
   - `--only <APP>`: Apply _only_ to a specific enrolled app.
@@ -34,9 +37,9 @@ theman load <PROFILE_NAME>
 **Example:**
 
 ```bash
-theman load nord
-theman load dark
-theman load work --dry-run
+themis load nord
+themis load dark
+themis load work --dry-run
 ```
 
 ### 2.2. `list`
@@ -44,7 +47,7 @@ theman load work --dry-run
 Lists available resources.
 
 ```bash
-theman list [profiles|integrations]
+themis list [profiles|integrations]
 ```
 
 - **profiles**: Lists all valid YAML files in the profiles directory.
@@ -55,7 +58,7 @@ theman list [profiles|integrations]
 Shows the current state.
 
 ```bash
-theman status
+themis status
 ```
 
 - **Output:**
@@ -68,12 +71,12 @@ theman status
 Scaffolds the configuration directory.
 
 ```bash
-theman init
+themis init
 ```
 
-- Creates `~/.config/theman/`
-- Creates `~/.config/theman/profiles/`
-- Writes a default `theman.yaml`
+- Creates `~/.config/themis/`
+- Creates `~/.config/themis/profiles/`
+- Writes a default `themis.yaml`
 - Writes a sample `profiles/default.yaml`
 
 ### 2.5. `verify`
@@ -81,7 +84,7 @@ theman init
 Validates the configuration and presets.
 
 ```bash
-theman verify
+themis verify
 ```
 
 - Checks for syntax errors in YAML files.
@@ -92,5 +95,5 @@ theman verify
 
 - **Success:** Minimal output. `✓ Loaded preset 'nord'`
 - **Error:** Clear, actionable error messages.
-  - `Error: Preset 'foobar' not found in ~/.config/theman/presets/`
+  - `Error: Preset 'foobar' not found in ~/.config/themis/presets/`
   - `Error: Integration 'foot' requires variable 'bg' which is missing in preset 'nord'.`

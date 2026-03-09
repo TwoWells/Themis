@@ -1,9 +1,12 @@
-# TheMan
+---
+title: Themis
+description: A theme orchestrator CLI for Linux
+---
 
-**TheMan** is a theme orchestrator CLI for Linux. It manages switching system themes across multiple
+**Themis** is a theme orchestrator CLI for Linux. It manages switching system themes across multiple
 applications by coordinating profiles, palettes, and integrations.
 
-TheMan acts as a "General Contractor" for desktop theming—it doesn't generate colors, but manages
+Themis acts as a "General Contractor" for desktop theming—it doesn't generate colors, but manages
 the _who, what, and when_ of applying themes.
 
 ## Features
@@ -11,7 +14,7 @@ the _who, what, and when_ of applying themes.
 - **Profile-based theming** - Define profiles that include color palettes and app-specific settings
 - **Palette inheritance** - System palettes (nord, dracula, etc.) can be extended by user palettes
 - **Multiple integration types** - Templates, symlinks, commands, and scripts
-- **Safety-first** - Generates hidden partials (`.theman.conf`) that users manually include
+- **Safety-first** - Generates hidden partials (`.themis.conf`) that users manually include
 - **Dry-run mode** - Preview changes without modifying files
 - **XDG compliant** - Respects `XDG_CONFIG_HOME` and `XDG_STATE_HOME`
 
@@ -19,26 +22,26 @@ the _who, what, and when_ of applying themes.
 
 ```bash
 # Initialize configuration
-theman init
+themis init
 
 # Load a profile
-theman load my-profile
+themis load my-profile
 
 # Check current status
-theman status
+themis status
 
 # Preview changes without applying
-theman load my-profile --dry-run
+themis load my-profile --dry-run
 ```
 
 ## How It Works
 
-1. **Enroll** applications in `theman.yaml` with their integration type
+1. **Enroll** applications in `themis.yaml` with their integration type
 2. **Create profiles** that define variables (colors, fonts, settings)
-3. **Run `theman load`** to apply the profile to all enrolled apps
+3. **Run `themis load`** to apply the profile to all enrolled apps
 
-TheMan never overwrites your main config files. Instead, it generates hidden partial files (like
-`.theman.conf`) that you include in your app's configuration.
+Themis never overwrites your main config files. Instead, it generates hidden partial files (like
+`.themis.conf`) that you include in your app's configuration.
 
 ## Next Steps
 

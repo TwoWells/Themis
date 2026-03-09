@@ -1,11 +1,11 @@
 use std::fs;
 use tempfile::TempDir;
-use theman::adapters::command::RealCommandExecutor;
-use theman::adapters::dryrun::{DryRunCommandExecutor, DryRunFileSystem};
-use theman::adapters::filesystem::RealFileSystem;
-use theman::adapters::template::TeraAdapter;
-use theman::commands::{init, verify};
-use theman::core::orchestrator::Orchestrator;
+use themis::adapters::command::RealCommandExecutor;
+use themis::adapters::dryrun::{DryRunCommandExecutor, DryRunFileSystem};
+use themis::adapters::filesystem::RealFileSystem;
+use themis::adapters::template::TeraAdapter;
+use themis::commands::{init, verify};
+use themis::core::orchestrator::Orchestrator;
 
 #[test]
 fn test_end_to_end_flow() {
@@ -23,7 +23,7 @@ fn test_end_to_end_flow() {
 
     // 2. Write Artifacts
 
-    // theman.yaml
+    // themis.yaml
     let config_content = format!(
         r##"
         current_profile: test-dark
@@ -37,7 +37,7 @@ fn test_end_to_end_flow() {
         output_file.display()
     );
 
-    fs::write(config_dir.join("theman.yaml"), config_content).unwrap();
+    fs::write(config_dir.join("themis.yaml"), config_content).unwrap();
 
     // profiles/test-dark.yaml
     fs::write(
@@ -103,7 +103,7 @@ fn test_dry_run_does_not_write_files() {
         output_file.display()
     );
 
-    fs::write(config_dir.join("theman.yaml"), config_content).unwrap();
+    fs::write(config_dir.join("themis.yaml"), config_content).unwrap();
 
     fs::write(
         profiles_dir.join("test-dark.yaml"),
@@ -144,7 +144,7 @@ fn test_dry_run_does_not_write_files() {
 #[test]
 fn test_init_creates_config_structure() {
     let temp_dir = TempDir::new().unwrap();
-    let config_dir = temp_dir.path().join("theman");
+    let config_dir = temp_dir.path().join("themis");
 
     // Run init
     let result = init::run(&config_dir);
@@ -156,11 +156,11 @@ fn test_init_creates_config_structure() {
     assert!(config_dir.join("templates").is_dir());
 
     // Verify files created
-    assert!(config_dir.join("theman.yaml").is_file());
+    assert!(config_dir.join("themis.yaml").is_file());
     assert!(config_dir.join("profiles/example.yaml").is_file());
 
     // Verify config is valid YAML
-    let config_content = fs::read_to_string(config_dir.join("theman.yaml")).unwrap();
+    let config_content = fs::read_to_string(config_dir.join("themis.yaml")).unwrap();
     assert!(config_content.contains("enroll:"));
 
     // Verify profile is valid YAML
@@ -171,7 +171,7 @@ fn test_init_creates_config_structure() {
 #[test]
 fn test_init_is_idempotent() {
     let temp_dir = TempDir::new().unwrap();
-    let config_dir = temp_dir.path().join("theman");
+    let config_dir = temp_dir.path().join("themis");
 
     // Run init twice
     init::run(&config_dir).unwrap();
@@ -185,7 +185,7 @@ fn test_init_is_idempotent() {
     );
 
     // Files should still exist
-    assert!(config_dir.join("theman.yaml").is_file());
+    assert!(config_dir.join("themis.yaml").is_file());
 }
 
 #[test]
@@ -201,20 +201,20 @@ fn test_verify_valid_config() {
 
     // Create valid config
     fs::write(
-        config_dir.join("theman.yaml"),
+        config_dir.join("themis.yaml"),
         r#"
 enroll:
   kitty:
     type: template
-    input: "~/.config/theman/templates/kitty.j2"
-    output: "~/.config/kitty/.theman.conf"
+    input: "~/.config/themis/templates/kitty.j2"
+    output: "~/.config/kitty/.themis.conf"
 "#,
     )
     .unwrap();
 
     // Create template (so verify passes)
     let home = std::env::var("HOME").unwrap();
-    let template_dir = format!("{}/.config/theman/templates", home);
+    let template_dir = format!("{}/.config/themis/templates", home);
     fs::create_dir_all(&template_dir).ok();
     fs::write(format!("{}/kitty.j2", template_dir), "test").ok();
 
@@ -247,7 +247,7 @@ fn test_verify_detects_invalid_yaml() {
     fs::create_dir_all(&system_dir).unwrap();
 
     // Create valid config
-    fs::write(config_dir.join("theman.yaml"), "enroll: {}").unwrap();
+    fs::write(config_dir.join("themis.yaml"), "enroll: {}").unwrap();
 
     // Create invalid profile YAML
     fs::write(
@@ -274,7 +274,7 @@ fn test_verify_detects_missing_palette() {
     fs::create_dir_all(&system_dir).unwrap();
 
     // Create valid config
-    fs::write(config_dir.join("theman.yaml"), "enroll: {}").unwrap();
+    fs::write(config_dir.join("themis.yaml"), "enroll: {}").unwrap();
 
     // Create profile that includes non-existent palette
     fs::write(
@@ -303,13 +303,13 @@ fn test_doctor_detects_missing_include() {
 
     // Create config enrolling kitty
     fs::write(
-        config_dir.join("theman.yaml"),
+        config_dir.join("themis.yaml"),
         r#"
 enroll:
   kitty:
     type: template
-    input: "~/.config/theman/templates/kitty.j2"
-    output: "~/.config/kitty/.theman.conf"
+    input: "~/.config/themis/templates/kitty.j2"
+    output: "~/.config/kitty/.themis.conf"
 "#,
     )
     .unwrap();
@@ -324,7 +324,7 @@ enroll:
     .unwrap();
 
     // Run doctor in subprocess with isolated HOME
-    let output = std::process::Command::new(env!("CARGO_BIN_EXE_theman"))
+    let output = std::process::Command::new(env!("CARGO_BIN_EXE_themis"))
         .args(["--config", config_dir.to_str().unwrap(), "doctor"])
         .env("HOME", temp_dir.path())
         .output()
@@ -351,13 +351,13 @@ fn test_doctor_reports_ok_with_include() {
 
     // Create config enrolling kitty
     fs::write(
-        config_dir.join("theman.yaml"),
+        config_dir.join("themis.yaml"),
         r#"
 enroll:
   kitty:
     type: template
-    input: "~/.config/theman/templates/kitty.j2"
-    output: "~/.config/kitty/.theman.conf"
+    input: "~/.config/themis/templates/kitty.j2"
+    output: "~/.config/kitty/.themis.conf"
 "#,
     )
     .unwrap();
@@ -367,12 +367,12 @@ enroll:
     fs::create_dir_all(&dot_config_kitty).unwrap();
     fs::write(
         dot_config_kitty.join("kitty.conf"),
-        "# Kitty config\ninclude .theman.conf\nfont_size 12\n",
+        "# Kitty config\ninclude .themis.conf\nfont_size 12\n",
     )
     .unwrap();
 
     // Run doctor in subprocess with isolated HOME
-    let output = std::process::Command::new(env!("CARGO_BIN_EXE_theman"))
+    let output = std::process::Command::new(env!("CARGO_BIN_EXE_themis"))
         .args(["--config", config_dir.to_str().unwrap(), "doctor"])
         .env("HOME", temp_dir.path())
         .output()
@@ -394,7 +394,7 @@ fn test_doctor_skips_unknown_apps() {
 
     // Create config enrolling gtk (which has no check defined)
     fs::write(
-        config_dir.join("theman.yaml"),
+        config_dir.join("themis.yaml"),
         r#"
 enroll:
   gtk:
@@ -406,7 +406,7 @@ enroll:
     .unwrap();
 
     // Run doctor in subprocess with isolated HOME
-    let output = std::process::Command::new(env!("CARGO_BIN_EXE_theman"))
+    let output = std::process::Command::new(env!("CARGO_BIN_EXE_themis"))
         .args(["--config", config_dir.to_str().unwrap(), "doctor"])
         .env("HOME", temp_dir.path())
         .output()
@@ -425,7 +425,7 @@ fn test_status_shows_no_state_initially() {
     let temp_dir = TempDir::new().unwrap();
 
     // Run status in subprocess with isolated HOME (no state file exists)
-    let output = std::process::Command::new(env!("CARGO_BIN_EXE_theman"))
+    let output = std::process::Command::new(env!("CARGO_BIN_EXE_themis"))
         .arg("status")
         .env("HOME", temp_dir.path())
         .output()
@@ -443,13 +443,13 @@ fn test_status_shows_no_state_initially() {
 #[test]
 fn test_status_shows_loaded_profile() {
     let temp_dir = TempDir::new().unwrap();
-    let config_dir = temp_dir.path().join(".config/theman");
+    let config_dir = temp_dir.path().join(".config/themis");
 
     // Create minimal config and profile
     fs::create_dir_all(config_dir.join("profiles")).unwrap();
     fs::create_dir_all(config_dir.join("templates")).unwrap();
 
-    fs::write(config_dir.join("theman.yaml"), "enroll: {}").unwrap();
+    fs::write(config_dir.join("themis.yaml"), "enroll: {}").unwrap();
     fs::write(
         config_dir.join("profiles/test-profile.yaml"),
         "vars:\n  bg: \"#000000\"",
@@ -457,7 +457,7 @@ fn test_status_shows_loaded_profile() {
     .unwrap();
 
     // Run load first
-    let load_output = std::process::Command::new(env!("CARGO_BIN_EXE_theman"))
+    let load_output = std::process::Command::new(env!("CARGO_BIN_EXE_themis"))
         .args([
             "--config",
             config_dir.to_str().unwrap(),
@@ -475,7 +475,7 @@ fn test_status_shows_loaded_profile() {
     );
 
     // Now run status
-    let status_output = std::process::Command::new(env!("CARGO_BIN_EXE_theman"))
+    let status_output = std::process::Command::new(env!("CARGO_BIN_EXE_themis"))
         .arg("status")
         .env("HOME", temp_dir.path())
         .output()
@@ -493,12 +493,12 @@ fn test_status_shows_loaded_profile() {
 #[test]
 fn test_dry_run_does_not_save_state() {
     let temp_dir = TempDir::new().unwrap();
-    let config_dir = temp_dir.path().join(".config/theman");
+    let config_dir = temp_dir.path().join(".config/themis");
 
     // Create minimal config and profile
     fs::create_dir_all(config_dir.join("profiles")).unwrap();
 
-    fs::write(config_dir.join("theman.yaml"), "enroll: {}").unwrap();
+    fs::write(config_dir.join("themis.yaml"), "enroll: {}").unwrap();
     fs::write(
         config_dir.join("profiles/test-profile.yaml"),
         "vars:\n  bg: \"#000000\"",
@@ -506,7 +506,7 @@ fn test_dry_run_does_not_save_state() {
     .unwrap();
 
     // Run load with --dry-run
-    let load_output = std::process::Command::new(env!("CARGO_BIN_EXE_theman"))
+    let load_output = std::process::Command::new(env!("CARGO_BIN_EXE_themis"))
         .args([
             "--config",
             config_dir.to_str().unwrap(),
@@ -525,7 +525,7 @@ fn test_dry_run_does_not_save_state() {
     );
 
     // Now run status - should show no state
-    let status_output = std::process::Command::new(env!("CARGO_BIN_EXE_theman"))
+    let status_output = std::process::Command::new(env!("CARGO_BIN_EXE_themis"))
         .arg("status")
         .env("HOME", temp_dir.path())
         .output()
@@ -543,14 +543,14 @@ fn test_dry_run_does_not_save_state() {
 #[test]
 fn test_status_respects_xdg_state_home() {
     let temp_dir = TempDir::new().unwrap();
-    let config_dir = temp_dir.path().join(".config/theman");
+    let config_dir = temp_dir.path().join(".config/themis");
     let custom_state_dir = temp_dir.path().join("custom-state");
 
     // Create minimal config and profile
     fs::create_dir_all(config_dir.join("profiles")).unwrap();
     fs::create_dir_all(&custom_state_dir).unwrap();
 
-    fs::write(config_dir.join("theman.yaml"), "enroll: {}").unwrap();
+    fs::write(config_dir.join("themis.yaml"), "enroll: {}").unwrap();
     fs::write(
         config_dir.join("profiles/xdg-test.yaml"),
         "vars:\n  bg: \"#000000\"",
@@ -558,7 +558,7 @@ fn test_status_respects_xdg_state_home() {
     .unwrap();
 
     // Run load with custom XDG_STATE_HOME
-    let load_output = std::process::Command::new(env!("CARGO_BIN_EXE_theman"))
+    let load_output = std::process::Command::new(env!("CARGO_BIN_EXE_themis"))
         .args(["--config", config_dir.to_str().unwrap(), "load", "xdg-test"])
         .env("HOME", temp_dir.path())
         .env("XDG_STATE_HOME", &custom_state_dir)
@@ -572,14 +572,14 @@ fn test_status_respects_xdg_state_home() {
     );
 
     // Verify state was saved to custom location
-    let state_file = custom_state_dir.join("theman/state.json");
+    let state_file = custom_state_dir.join("themis/state.json");
     assert!(
         state_file.exists(),
         "State should be saved to XDG_STATE_HOME"
     );
 
     // Verify status reads from custom location
-    let status_output = std::process::Command::new(env!("CARGO_BIN_EXE_theman"))
+    let status_output = std::process::Command::new(env!("CARGO_BIN_EXE_themis"))
         .arg("status")
         .env("HOME", temp_dir.path())
         .env("XDG_STATE_HOME", &custom_state_dir)
@@ -596,7 +596,7 @@ fn test_status_respects_xdg_state_home() {
 
 #[test]
 fn test_completions_bash() {
-    let output = std::process::Command::new(env!("CARGO_BIN_EXE_theman"))
+    let output = std::process::Command::new(env!("CARGO_BIN_EXE_themis"))
         .args(["completions", "bash"])
         .output()
         .unwrap();
@@ -607,7 +607,7 @@ fn test_completions_bash() {
     );
     let stdout = String::from_utf8_lossy(&output.stdout);
     assert!(
-        stdout.contains("_theman()"),
+        stdout.contains("_themis()"),
         "Bash completions should contain function: {}",
         stdout
     );
@@ -615,7 +615,7 @@ fn test_completions_bash() {
 
 #[test]
 fn test_completions_zsh() {
-    let output = std::process::Command::new(env!("CARGO_BIN_EXE_theman"))
+    let output = std::process::Command::new(env!("CARGO_BIN_EXE_themis"))
         .args(["completions", "zsh"])
         .output()
         .unwrap();
@@ -626,7 +626,7 @@ fn test_completions_zsh() {
     );
     let stdout = String::from_utf8_lossy(&output.stdout);
     assert!(
-        stdout.contains("#compdef theman"),
+        stdout.contains("#compdef themis"),
         "Zsh completions should contain compdef: {}",
         stdout
     );
@@ -634,7 +634,7 @@ fn test_completions_zsh() {
 
 #[test]
 fn test_completions_fish() {
-    let output = std::process::Command::new(env!("CARGO_BIN_EXE_theman"))
+    let output = std::process::Command::new(env!("CARGO_BIN_EXE_themis"))
         .args(["completions", "fish"])
         .output()
         .unwrap();
@@ -645,7 +645,7 @@ fn test_completions_fish() {
     );
     let stdout = String::from_utf8_lossy(&output.stdout);
     assert!(
-        stdout.contains("complete -c theman"),
+        stdout.contains("complete -c themis"),
         "Fish completions should contain complete command: {}",
         stdout
     );

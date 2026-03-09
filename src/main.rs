@@ -1,26 +1,26 @@
 use anyhow::{Context, Result};
 use clap::{CommandFactory, Parser, Subcommand};
-use clap_complete::{generate, Shell};
+use clap_complete::{Shell, generate};
 use directories::ProjectDirs;
 use std::io;
 use std::path::PathBuf;
-use tracing::{debug, info, Level};
+use tracing::{Level, debug, info};
 use tracing_subscriber::FmtSubscriber;
 
-use theman::adapters::command::RealCommandExecutor;
-use theman::adapters::dryrun::{DryRunCommandExecutor, DryRunFileSystem};
-use theman::adapters::filesystem::RealFileSystem;
-use theman::adapters::template::TeraAdapter;
-use theman::core::orchestrator::{Orchestrator, SYSTEM_DATA_DIR};
-use theman::core::state::State;
+use themis::adapters::command::RealCommandExecutor;
+use themis::adapters::dryrun::{DryRunCommandExecutor, DryRunFileSystem};
+use themis::adapters::filesystem::RealFileSystem;
+use themis::adapters::template::TeraAdapter;
+use themis::core::orchestrator::{Orchestrator, SYSTEM_DATA_DIR};
+use themis::core::state::State;
 
 #[derive(Parser)]
-#[command(name = "theman")]
+#[command(name = "themis")]
 #[command(about = "The General Contractor for your Linux Desktop Theme")]
 #[command(version)]
 struct Cli {
-    /// Path to config directory (defaults to ~/.config/theman)
-    #[arg(long, short, env = "THEMAN_CONFIG_DIR")]
+    /// Path to config directory (defaults to ~/.config/themis)
+    #[arg(long, short, env = "THEMIS_CONFIG_DIR")]
     config: Option<PathBuf>,
 
     /// Enable verbose logging
@@ -79,13 +79,13 @@ fn main() -> Result<()> {
     let config_dir = if let Some(path) = cli.config {
         path
     } else {
-        ProjectDirs::from("com", "theman", "theman")
+        ProjectDirs::from("com", "themis", "themis")
             .context("Could not determine home directory")?
             .config_dir()
             .to_path_buf()
     };
 
-    // Hack: 'directories' crate uses 'com.theman.theman' -> ~/.config/theman on Linux usually
+    // Hack: 'directories' crate uses 'com.themis.themis' -> ~/.config/themis on Linux usually
     // But verify.
     debug!("Config dir: {:?}", config_dir);
 
@@ -124,26 +124,26 @@ fn main() -> Result<()> {
             }
         }
         Commands::Status => {
-            theman::commands::status::run()?;
+            themis::commands::status::run()?;
         }
         Commands::Init => {
-            theman::commands::init::run(&config_dir)?;
+            themis::commands::init::run(&config_dir)?;
         }
         Commands::Verify => {
             let system_dir = PathBuf::from(SYSTEM_DATA_DIR);
-            let result = theman::commands::verify::run(&config_dir, &system_dir)?;
+            let result = themis::commands::verify::run(&config_dir, &system_dir)?;
             if !result.is_ok() {
                 std::process::exit(1);
             }
         }
         Commands::Doctor => {
-            let result = theman::commands::doctor::run(&config_dir)?;
+            let result = themis::commands::doctor::run(&config_dir)?;
             if !result.is_healthy() {
                 std::process::exit(1);
             }
         }
         Commands::Completions { shell } => {
-            generate(shell, &mut Cli::command(), "theman", &mut io::stdout());
+            generate(shell, &mut Cli::command(), "themis", &mut io::stdout());
         }
     }
 

@@ -1,4 +1,4 @@
-//! State persistence for TheMan.
+//! State persistence for Themis.
 //!
 //! Tracks the currently loaded profile and saves it to disk following
 //! the XDG Base Directory specification.
@@ -6,7 +6,7 @@
 //! # Example
 //!
 //! ```
-//! use theman::core::state::State;
+//! use themis::core::state::State;
 //! use tempfile::TempDir;
 //!
 //! // Create a new state after loading a profile
@@ -31,10 +31,10 @@ use tracing::debug;
 
 const STATE_FILE: &str = "state.json";
 
-/// Persistent state for TheMan, saved between invocations.
+/// Persistent state for Themis, saved between invocations.
 ///
-/// State is stored at `$XDG_STATE_HOME/theman/state.json` (defaults to
-/// `~/.local/state/theman/state.json`).
+/// State is stored at `$XDG_STATE_HOME/themis/state.json` (defaults to
+/// `~/.local/state/themis/state.json`).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct State {
     /// Timestamp of last successful load (ISO 8601 format)
@@ -60,7 +60,7 @@ impl State {
     /// # Example
     ///
     /// ```
-    /// use theman::core::state::State;
+    /// use themis::core::state::State;
     ///
     /// let state = State::new("gruvbox".to_string());
     /// assert!(state.success);
@@ -76,8 +76,8 @@ impl State {
 
     /// Get the state file path following XDG Base Directory spec.
     ///
-    /// Returns `$XDG_STATE_HOME/theman/state.json` if `XDG_STATE_HOME` is set,
-    /// otherwise `~/.local/state/theman/state.json`.
+    /// Returns `$XDG_STATE_HOME/themis/state.json` if `XDG_STATE_HOME` is set,
+    /// otherwise `~/.local/state/themis/state.json`.
     pub fn state_path() -> Result<PathBuf> {
         let state_home = if let Ok(xdg) = std::env::var("XDG_STATE_HOME") {
             PathBuf::from(xdg)
@@ -85,7 +85,7 @@ impl State {
             let home = std::env::var("HOME").context("HOME environment variable not set")?;
             PathBuf::from(home).join(".local/state")
         };
-        Ok(state_home.join("theman").join(STATE_FILE))
+        Ok(state_home.join("themis").join(STATE_FILE))
     }
 
     /// Load state from the default XDG location.
@@ -113,7 +113,7 @@ impl State {
     /// # Example
     ///
     /// ```
-    /// use theman::core::state::State;
+    /// use themis::core::state::State;
     /// use tempfile::TempDir;
     ///
     /// let temp = TempDir::new().unwrap();
@@ -153,7 +153,7 @@ impl State {
     /// # Example
     ///
     /// ```
-    /// use theman::core::state::State;
+    /// use themis::core::state::State;
     /// use tempfile::TempDir;
     /// use std::fs;
     ///

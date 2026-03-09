@@ -1,8 +1,11 @@
-# State Management Design
+---
+title: State Design
+description: Internal design document for Themis state management
+---
 
 ## Overview
 
-"TheMan" must remember its previous actions. This state is used to:
+"Themis" must remember its previous actions. This state is used to:
 
 1.  Report status to the user (or status bars).
 2.  Enable intelligent toggling (e.g., "switch to light mode of the _current_ theme").
@@ -10,7 +13,7 @@
 
 ## 1. State Location
 
-Following XDG State Home standards: `~/.local/state/theman/state.json`
+Following XDG State Home standards: `~/.local/state/themis/state.json`
 
 ## 2. State Schema
 
@@ -34,17 +37,17 @@ The state file is a JSON object updated _after_ a successful `load` operation.
 
   "history": [
     # Optional: Keep a small history of previous themes?
-    # Useful for a "theman undo" feature.
+    # Useful for a "themis undo" feature.
   ]
 }
 ```
 
 ## 3. The "Toggle" Logic
 
-A common user request is "Toggle Light/Dark". TheMan does not have a hardcoded `toggle` command
+A common user request is "Toggle Light/Dark". Themis does not have a hardcoded `toggle` command
 logic. Instead, it relies on the state.
 
-**Scenario:** User runs `theman toggle` (or `theman load --toggle` TBD).
+**Scenario:** User runs `themis toggle` (or `themis load --toggle` TBD).
 
 1.  Read `state.json`.
 2.  Identify current preset: `nord`.
@@ -55,7 +58,7 @@ logic. Instead, it relies on the state.
       override.
 
 **Decision:** **Option B** is more robust for the Declarative model. If
-`theman load nord --mode light` is run, the preset `nord.yaml` is loaded, but the `mode` variable is
+`themis load nord --mode light` is run, the preset `nord.yaml` is loaded, but the `mode` variable is
 forced to `light`. The preset's internal logic (if using Jinja2 in the preset itself? No, presets
 are static YAML) ...
 
@@ -67,7 +70,7 @@ separate files (`nord-light.yaml`, `nord-dark.yaml`).
 `nord-dark`, try loading `nord-light`. If `state.preset` == `nord`, and it has no obvious suffix,
 `toggle` might fail or require configuration mapping.
 
-_Alternative:_ The `theman.yaml` config can define pairs:
+_Alternative:_ The `themis.yaml` config can define pairs:
 
 ```yaml
 toggles:
@@ -79,9 +82,9 @@ This is simple and explicit.
 
 ## 4. Concurrency & Locking
 
-Since TheMan is a "Run-Once" CLI, race conditions are rare but possible (e.g., two scripts
+Since Themis is a "Run-Once" CLI, race conditions are rare but possible (e.g., two scripts
 triggering it simultaneously).
 
-- **Lockfile:** `~/.local/state/theman/lock`
+- **Lockfile:** `~/.local/state/themis/lock`
 - If the lock exists and is fresh (< 10 seconds), fail or wait.
 - This prevents corrupted state if the user mashes the button.

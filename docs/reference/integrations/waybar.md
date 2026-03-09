@@ -1,11 +1,14 @@
-# Waybar Integration
+---
+title: Waybar
+description: Status bar theming with CSS and SIGUSR2 reload
+---
 
-## 1. Mechanism
+## Mechanism
 
 Waybar is styled via `style.css`. It supports live reloading if the config changes, OR via
 `SIGUSR2`. However, often we only want to change specific colors, not the whole CSS layout.
 
-## 2. TheMan's Approach
+## 2. Themis's Approach
 
 We use **Template + Include + Signal**.
 
@@ -33,7 +36,7 @@ window#waybar {
 enroll:
   waybar:
     type: template
-    input: "~/.config/theman/templates/waybar_colors.css.j2"
+    input: "~/.config/themis/templates/waybar_colors.css.j2"
     output: "~/.config/waybar/colors.css"
     # The crucial reload step
     reload_signal: SIGUSR2

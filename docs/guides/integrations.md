@@ -1,6 +1,9 @@
-# Integration Types
+---
+title: Integration Types
+description: Template, symlink, command, and script integrations
+---
 
-TheMan supports four integration types for theming applications. Each type is suited for different
+Themis supports four integration types for theming applications. Each type is suited for different
 scenarios.
 
 ## Template
@@ -12,8 +15,8 @@ applications.
 enroll:
   kitty:
     type: template
-    input: "~/.config/theman/templates/kitty.j2"
-    output: "~/.config/kitty/.theman.conf"
+    input: "~/.config/themis/templates/kitty.j2"
+    output: "~/.config/kitty/.themis.conf"
     reload_cmd: "kill -SIGUSR1 $(pgrep kitty)" # optional
     reload_signal: SIGUSR1 # optional (uses pkill)
 ```
@@ -23,7 +26,7 @@ enroll:
 Templates use Jinja2 syntax:
 
 ```jinja2
-# ~/.config/theman/templates/kitty.j2
+# ~/.config/themis/templates/kitty.j2
 foreground {{ fg }}
 background {{ bg }}
 font_family {{ font_family }}
@@ -58,7 +61,7 @@ config files swapped.
 enroll:
   alacritty:
     type: symlink
-    source: "~/.config/theman/configs/alacritty-{{ mode }}.toml"
+    source: "~/.config/themis/configs/alacritty-{{ mode }}.toml"
     target: "~/.config/alacritty/colors.toml"
     reload_cmd: "touch ~/.config/alacritty/alacritty.toml"
 ```
@@ -66,7 +69,7 @@ enroll:
 With a profile containing `mode: dark`, this creates:
 
 ```
-~/.config/alacritty/colors.toml -> ~/.config/theman/configs/alacritty-dark.toml
+~/.config/alacritty/colors.toml -> ~/.config/themis/configs/alacritty-dark.toml
 ```
 
 ## Command
@@ -100,7 +103,7 @@ commands.
 enroll:
   custom:
     type: script
-    path: "~/.config/theman/scripts/custom.sh"
+    path: "~/.config/themis/scripts/custom.sh"
     args: ["--mode", "{{ mode }}"]
     env:
       CUSTOM_VAR: "value"
@@ -108,14 +111,14 @@ enroll:
 
 ### Environment Variables
 
-All profile variables are passed as `THEMAN_<VAR>` environment variables:
+All profile variables are passed as `THEMIS_<VAR>` environment variables:
 
 ```bash
 #!/bin/bash
-# All variables available as THEMAN_* env vars
-echo "Background: $THEMAN_BG"
-echo "Foreground: $THEMAN_FG"
-echo "Mode: $THEMAN_MODE"
+# All variables available as THEMIS_* env vars
+echo "Background: $THEMIS_BG"
+echo "Foreground: $THEMIS_FG"
+echo "Mode: $THEMIS_MODE"
 ```
 
 Array values are colon-delimited (Unix convention):
@@ -128,7 +131,7 @@ vars:
 
 ```bash
 # In script
-echo $THEMAN_COLORS  # "#111:#222:#333"
+echo $THEMIS_COLORS  # "#111:#222:#333"
 ```
 
 ## Choosing the Right Type
@@ -144,7 +147,7 @@ echo $THEMAN_COLORS  # "#111:#222:#333"
 
 ## Integration Order
 
-Apps are processed in the order they appear in `theman.yaml`. Use this to ensure dependencies are
+Apps are processed in the order they appear in `themis.yaml`. Use this to ensure dependencies are
 set up first:
 
 ```yaml
@@ -172,5 +175,5 @@ When an integration fails:
 Use `--dry-run` to preview all changes before applying:
 
 ```bash
-theman load my-profile --dry-run
+themis load my-profile --dry-run
 ```

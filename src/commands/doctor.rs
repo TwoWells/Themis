@@ -21,8 +21,8 @@ const APP_CHECKS: &[AppCheck] = &[
     AppCheck {
         name: "kitty",
         config_path: "~/.config/kitty/kitty.conf",
-        pattern: "include .theman.conf",
-        fix: "Add this line to ~/.config/kitty/kitty.conf:\n  include .theman.conf",
+        pattern: "include .themis.conf",
+        fix: "Add this line to ~/.config/kitty/kitty.conf:\n  include .themis.conf",
     },
     AppCheck {
         name: "waybar",
@@ -39,20 +39,20 @@ const APP_CHECKS: &[AppCheck] = &[
     AppCheck {
         name: "rofi",
         config_path: "~/.config/rofi/config.rasi",
-        pattern: "@theme \"theman\"",
-        fix: "Add this line to ~/.config/rofi/config.rasi:\n  @theme \"theman\";",
+        pattern: "@theme \"themis\"",
+        fix: "Add this line to ~/.config/rofi/config.rasi:\n  @theme \"themis\";",
     },
     AppCheck {
         name: "foot",
         config_path: "~/.config/foot/foot.ini",
         pattern: "include=",
-        fix: "Add this line to ~/.config/foot/foot.ini:\n  include=~/.config/foot/theman.ini",
+        fix: "Add this line to ~/.config/foot/foot.ini:\n  include=~/.config/foot/themis.ini",
     },
     AppCheck {
         name: "alacritty",
         config_path: "~/.config/alacritty/alacritty.toml",
         pattern: "import",
-        fix: "Add this to ~/.config/alacritty/alacritty.toml:\n  import = [\"~/.config/alacritty/theman.toml\"]",
+        fix: "Add this to ~/.config/alacritty/alacritty.toml:\n  import = [\"~/.config/alacritty/themis.toml\"]",
     },
 ];
 
@@ -79,15 +79,15 @@ impl DoctorResult {
 pub fn run(config_dir: &Path) -> Result<DoctorResult> {
     let mut result = DoctorResult::new();
 
-    info!("Running TheMan doctor...");
+    info!("Running Themis doctor...");
     info!("");
 
     // Load config to see enrolled apps
-    let config_file = config_dir.join("theman.yaml");
+    let config_file = config_dir.join("themis.yaml");
     if !config_file.exists() {
         result
             .issues
-            .push("Config file not found. Run 'theman init' first.".to_string());
+            .push("Config file not found. Run 'themis init' first.".to_string());
         return Ok(result);
     }
 

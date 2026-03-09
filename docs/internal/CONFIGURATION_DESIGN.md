@@ -1,8 +1,11 @@
-# Configuration Design
+---
+title: Configuration Design
+description: Internal design document for Themis configuration
+---
 
 ## Philosophy: The "Contractor" Model
 
-TheMan acts as a contractor executing a renovation. The user provides a **Work Order**
+Themis acts as a contractor executing a renovation. The user provides a **Work Order**
 (Configuration) that specifies:
 
 1.  **The Blueprint:** What style are we applying? (The Profile)
@@ -31,11 +34,11 @@ vars:
 
 ## 2. The Scope (Enrollment)
 
-The user should not be burdened with configuring applications they don't use. The `theman.yaml`
+The user should not be burdened with configuring applications they don't use. The `themis.yaml`
 config simply lists which "Integrations" are active.
 
 ```yaml
-# theman.yaml (User Config)
+# themis.yaml (User Config)
 
 # 1. Global State
 current_profile: "nord"
@@ -46,7 +49,7 @@ enroll:
   - gtk
   - foot
   - dunst
-  # - qt (Commented out, so TheMan ignores QT completely)
+  # - qt (Commented out, so Themis ignores QT completely)
 ```
 
 ## 3. Overrides (Specific Instructions)
@@ -54,7 +57,7 @@ enroll:
 Users can override global variables from the Profile for specific apps.
 
 ```yaml
-# theman.yaml
+# themis.yaml
 
 overrides:
   # Global Override (Apply to all apps)
@@ -69,7 +72,7 @@ overrides:
 
 ## 4. Resolution Logic
 
-When TheMan updates an application (e.g., `foot`):
+When Themis updates an application (e.g., `foot`):
 
 1.  **Check Enrollment:** Is `foot` in the `enroll` list? If no, skip.
 2.  **Load Handler:** Load the integration logic for `foot`.
@@ -82,6 +85,6 @@ When TheMan updates an application (e.g., `foot`):
 ## 5. Benefits
 
 - **Minimal Config:** A user only lists the apps they use.
-- **Safety:** TheMan doesn't touch config files for unenrolled apps.
+- **Safety:** Themis doesn't touch config files for unenrolled apps.
 - **Flexibility:** Presets provide the basics, but users have full control to tweak specific apps
   without breaking the global theme.

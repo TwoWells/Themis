@@ -1,11 +1,14 @@
-# Polybar Integration (X11)
+---
+title: Polybar
+description: X11 status bar theming with config includes
+---
 
-## 1. Mechanism
+## Mechanism
 
 Polybar runs as a daemon. It usually has a config file (`config.ini`) which can include other files.
 It supports an IPC mechanism (`polybar-msg`) to restart or reload the bar.
 
-## 2. TheMan's Approach
+## 2. Themis's Approach
 
 We use **Template + Include + Command**.
 
@@ -28,7 +31,7 @@ include-file = ~/.config/polybar/colors.ini
 enroll:
   polybar:
     type: template
-    input: "~/.config/theman/templates/polybar_colors.ini.j2"
+    input: "~/.config/themis/templates/polybar_colors.ini.j2"
     output: "~/.config/polybar/colors.ini"
     # Command to reload/restart
     reload_cmd: "polybar-msg cmd restart"
