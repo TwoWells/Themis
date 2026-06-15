@@ -1,4 +1,4 @@
-.PHONY: fmt lint test test-doc deny check build install install-completions uninstall clean setup setup-hooks setup-tools
+.PHONY: fmt lint test test-doc deny machete check build install install-completions uninstall clean setup setup-hooks setup-tools
 
 # Binary name (matches the package name in Cargo.toml)
 BIN := themis
@@ -57,16 +57,20 @@ deny:
 	   fi; \
 	 done
 
-# 5. Meta-task for CI/Pre-commit
+# 5. Unused-dependency check (cargo-machete)
+machete:
+	cargo machete --skip-target-dir
+
+# 6. Meta-task for CI/Pre-commit
 # nextest (test) runs unit/integration tests; test-doc preserves doctest
 # coverage that nextest does not run.
-check: lint deny test test-doc
+check: lint deny machete test test-doc
 
-# 6. Build
+# 7. Build
 build:
 	cargo build --release
 
-# 7. Install (use sudo for system install, or PREFIX=~/.local for user install)
+# 8. Install (use sudo for system install, or PREFIX=~/.local for user install)
 install: build
 	install -Dm755 target/release/$(BIN) $(BINDIR)/$(BIN)
 ifeq ($(PREFIX),/usr)
@@ -86,14 +90,14 @@ install-completions:
 	target/release/$(BIN) completions zsh > $(ZSH_COMPLETION_DIR)/_$(BIN)
 	target/release/$(BIN) completions fish > $(FISH_COMPLETION_DIR)/$(BIN).fish
 
-# 8. Uninstall
+# 9. Uninstall
 uninstall:
 	rm -f $(BINDIR)/$(BIN)
 	rm -f $(BASH_COMPLETION_DIR)/$(BIN)
 	rm -f $(ZSH_COMPLETION_DIR)/_$(BIN)
 	rm -f $(FISH_COMPLETION_DIR)/$(BIN).fish
 
-# 9. Setup
+# 10. Setup
 # One-time setup: configure hooks and check tools
 setup: setup-hooks setup-tools
 
