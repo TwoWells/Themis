@@ -12,7 +12,7 @@ pub struct VerifyResult {
 }
 
 impl VerifyResult {
-    fn new() -> Self {
+    const fn new() -> Self {
         Self {
             errors: Vec::new(),
             warnings: Vec::new(),
@@ -27,7 +27,8 @@ impl VerifyResult {
         self.warnings.push(msg.into());
     }
 
-    pub fn is_ok(&self) -> bool {
+    #[must_use]
+    pub const fn is_ok(&self) -> bool {
         self.errors.is_empty()
     }
 }
@@ -41,8 +42,8 @@ pub fn run(config_dir: &Path, system_dir: &Path) -> Result<VerifyResult> {
     let config_file = config_dir.join("themis.yaml");
     if !config_file.exists() {
         result.error(format!(
-            "Config file not found: {:?}\nRun 'themis init' to create it.",
-            config_file
+            "Config file not found: {}\nRun 'themis init' to create it.",
+            config_file.display()
         ));
         return Ok(result);
     }
@@ -53,7 +54,7 @@ pub fn run(config_dir: &Path, system_dir: &Path) -> Result<VerifyResult> {
     {
         Ok(c) => c,
         Err(e) => {
-            result.error(format!("Invalid config file: {}", e));
+            result.error(format!("Invalid config file: {e}"));
             return Ok(result);
         }
     };
@@ -112,10 +113,10 @@ fn verify_integration(
     match integration {
         Integration::Template { input, output, .. } => {
             let input_path = shellexpand::tilde(input);
-            if !Path::new(input_path.as_ref()).exists() {
-                result.error(format!("[{}] Template not found: {}", app_name, input));
+            if Path::new(input_path.as_ref()).exists() {
+                info!("[{app_name}] Template: OK");
             } else {
-                info!("[{}] Template: OK", app_name);
+                result.error(format!("[{app_name}] Template not found: {input}"));
             }
 
             // Check output parent directory exists
@@ -124,8 +125,8 @@ fn verify_integration(
                 && !parent.exists()
             {
                 result.warn(format!(
-                    "[{}] Output directory doesn't exist: {:?}",
-                    app_name, parent
+                    "[{app_name}] Output directory doesn't exist: {}",
+                    parent.display()
                 ));
             }
         }
@@ -137,25 +138,25 @@ fn verify_integration(
                 && !parent.exists()
             {
                 result.warn(format!(
-                    "[{}] Symlink target directory doesn't exist: {:?}",
-                    app_name, parent
+                    "[{app_name}] Symlink target directory doesn't exist: {}",
+                    parent.display()
                 ));
             }
-            info!("[{}] Symlink config: OK", app_name);
+            info!("[{app_name}] Symlink config: OK");
         }
         Integration::Command { commands } => {
             if commands.is_empty() {
-                result.warn(format!("[{}] No commands defined", app_name));
+                result.warn(format!("[{app_name}] No commands defined"));
             } else {
-                info!("[{}] Commands: {} defined", app_name, commands.len());
+                info!("[{app_name}] Commands: {} defined", commands.len());
             }
         }
         Integration::Script { path, .. } => {
             let script_path = shellexpand::tilde(path);
-            if !Path::new(script_path.as_ref()).exists() {
-                result.error(format!("[{}] Script not found: {}", app_name, path));
+            if Path::new(script_path.as_ref()).exists() {
+                info!("[{app_name}] Script: OK");
             } else {
-                info!("[{}] Script: OK", app_name);
+                result.error(format!("[{app_name}] Script not found: {path}"));
             }
         }
     }
@@ -167,20 +168,22 @@ fn verify_profiles(
     system_dir: &Path,
     result: &mut VerifyResult,
 ) {
-    let entries = match std::fs::read_dir(profiles_dir) {
-        Ok(e) => e,
-        Err(_) => return,
+    let Ok(entries) = std::fs::read_dir(profiles_dir) else {
+        return;
     };
 
     for entry in entries.flatten() {
         let path = entry.path();
         if path.extension().is_some_and(|e| e == "yaml" || e == "yml") {
-            let name = path.file_stem().unwrap().to_string_lossy();
+            let Some(stem) = path.file_stem() else {
+                continue;
+            };
+            let name = stem.to_string_lossy();
 
             let content = match std::fs::read_to_string(&path) {
                 Ok(c) => c,
                 Err(e) => {
-                    result.error(format!("Profile '{}' couldn't be read: {}", name, e));
+                    result.error(format!("Profile '{name}' couldn't be read: {e}"));
                     continue;
                 }
             };
@@ -188,7 +191,7 @@ fn verify_profiles(
             let profile: Profile = match serde_yaml::from_str(&content) {
                 Ok(p) => p,
                 Err(e) => {
-                    result.error(format!("Profile '{}' is invalid YAML: {}", name, e));
+                    result.error(format!("Profile '{name}' is invalid YAML: {e}"));
                     continue;
                 }
             };
@@ -198,11 +201,10 @@ fn verify_profiles(
                 && !palette_exists(palette_name, config_dir, system_dir)
             {
                 result.error(format!(
-                    "Profile '{}' includes palette '{}' which doesn't exist",
-                    name, palette_name
+                    "Profile '{name}' includes palette '{palette_name}' which doesn't exist"
                 ));
             }
-            info!("Profile '{}': OK", name);
+            info!("Profile '{name}': OK");
         }
     }
 }
@@ -213,20 +215,22 @@ fn verify_palettes(
     system_dir: &Path,
     result: &mut VerifyResult,
 ) {
-    let entries = match std::fs::read_dir(palettes_dir) {
-        Ok(e) => e,
-        Err(_) => return,
+    let Ok(entries) = std::fs::read_dir(palettes_dir) else {
+        return;
     };
 
     for entry in entries.flatten() {
         let path = entry.path();
         if path.extension().is_some_and(|e| e == "yaml" || e == "yml") {
-            let name = path.file_stem().unwrap().to_string_lossy();
+            let Some(stem) = path.file_stem() else {
+                continue;
+            };
+            let name = stem.to_string_lossy();
 
             let content = match std::fs::read_to_string(&path) {
                 Ok(c) => c,
                 Err(e) => {
-                    result.error(format!("Palette '{}' couldn't be read: {}", name, e));
+                    result.error(format!("Palette '{name}' couldn't be read: {e}"));
                     continue;
                 }
             };
@@ -234,7 +238,7 @@ fn verify_palettes(
             let palette: Profile = match serde_yaml::from_str(&content) {
                 Ok(p) => p,
                 Err(e) => {
-                    result.error(format!("Palette '{}' is invalid YAML: {}", name, e));
+                    result.error(format!("Palette '{name}' is invalid YAML: {e}"));
                     continue;
                 }
             };
@@ -244,17 +248,16 @@ fn verify_palettes(
                 && !palette_exists(parent_name, config_dir, system_dir)
             {
                 result.error(format!(
-                    "Palette '{}' includes '{}' which doesn't exist",
-                    name, parent_name
+                    "Palette '{name}' includes '{parent_name}' which doesn't exist"
                 ));
             }
-            info!("Palette '{}': OK", name);
+            info!("Palette '{name}': OK");
         }
     }
 }
 
 fn palette_exists(name: &str, config_dir: &Path, system_dir: &Path) -> bool {
-    let user_path = config_dir.join("palettes").join(format!("{}.yaml", name));
-    let system_path = system_dir.join("palettes").join(format!("{}.yaml", name));
+    let user_path = config_dir.join("palettes").join(format!("{name}.yaml"));
+    let system_path = system_dir.join("palettes").join(format!("{name}.yaml"));
     user_path.exists() || system_path.exists()
 }

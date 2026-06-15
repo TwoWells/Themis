@@ -31,7 +31,7 @@ fmt:
 # 2. Check Code (Read-only)
 lint:
 	cargo fmt -- --check
-	cargo clippy -- -D warnings
+	cargo clippy --tests -- -D warnings
 	prettier --check .
 
 # 3. Test (via cargo-nextest)

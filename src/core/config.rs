@@ -95,6 +95,7 @@ impl Config {
     /// let kitty = config.get_overrides_for("kitty");
     /// assert_eq!(kitty.get("size").unwrap(), 12);
     /// ```
+    #[must_use]
     pub fn get_overrides_for(&self, app_name: &str) -> HashMap<String, Value> {
         let mut resolved = HashMap::new();
 

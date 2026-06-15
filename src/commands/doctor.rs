@@ -63,7 +63,7 @@ pub struct DoctorResult {
 }
 
 impl DoctorResult {
-    fn new() -> Self {
+    const fn new() -> Self {
         Self {
             issues: Vec::new(),
             ok_count: 0,
@@ -71,7 +71,8 @@ impl DoctorResult {
         }
     }
 
-    pub fn is_healthy(&self) -> bool {
+    #[must_use]
+    pub const fn is_healthy(&self) -> bool {
         self.issues.is_empty()
     }
 }

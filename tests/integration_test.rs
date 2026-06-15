@@ -1,3 +1,15 @@
+#![allow(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    reason = "tests assert via unwrap/expect"
+)]
+#![allow(
+    clippy::needless_raw_string_hashes,
+    clippy::uninlined_format_args,
+    clippy::redundant_clone,
+    reason = "test scaffolding: uniform raw YAML fixtures and explicit setup"
+)]
+
 use std::fs;
 use tempfile::TempDir;
 use themis::adapters::command::RealCommandExecutor;

@@ -1,5 +1,19 @@
 #[cfg(test)]
 mod tests {
+    #![allow(
+        clippy::unwrap_used,
+        clippy::expect_used,
+        reason = "tests assert via unwrap/expect"
+    )]
+    #![allow(clippy::module_inception, reason = "core test module by convention")]
+    #![allow(
+        clippy::needless_raw_string_hashes,
+        clippy::default_constructed_unit_structs,
+        clippy::uninlined_format_args,
+        clippy::significant_drop_tightening,
+        reason = "test scaffolding: uniform raw YAML fixtures, mock construction, and assert! message args"
+    )]
+
     use crate::adapters::mock::{MockCommandExecutor, MockFileSystem, MockTemplateRenderer};
     use crate::core::orchestrator::Orchestrator;
     use crate::core::traits::FileSystem;

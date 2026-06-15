@@ -13,11 +13,11 @@ impl CommandExecutor for RealCommandExecutor {
             .arg("-c")
             .arg(command)
             .output()
-            .with_context(|| format!("Failed to spawn shell command: {}", command))?;
+            .with_context(|| format!("Failed to spawn shell command: {command}"))?;
 
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr);
-            anyhow::bail!("Command failed: {}\nStderr: {}", command, stderr);
+            anyhow::bail!("Command failed: {command}\nStderr: {stderr}");
         }
 
         Ok(())
@@ -36,11 +36,11 @@ impl CommandExecutor for RealCommandExecutor {
 
         let output = cmd
             .output()
-            .with_context(|| format!("Failed to spawn script: {:?}", path))?;
+            .with_context(|| format!("Failed to spawn script: {}", path.display()))?;
 
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr);
-            anyhow::bail!("Script failed: {:?}\nStderr: {}", path, stderr);
+            anyhow::bail!("Script failed: {}\nStderr: {stderr}", path.display());
         }
 
         Ok(())

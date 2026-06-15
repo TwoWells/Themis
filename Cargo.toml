@@ -25,3 +25,30 @@ shellexpand = "3.0"
 
 [dev-dependencies]
 tempfile = "3.24.0"
+
+[lints.rust]
+unsafe_code = "forbid"
+missing_docs = "allow"          # doc-completeness deferred; flip to "warn" in a follow-up once docs are filled in
+
+[lints.clippy]
+pedantic = { level = "warn", priority = -1 }
+nursery  = { level = "warn", priority = -1 }
+cargo    = { level = "warn", priority = -1 }
+
+# Hard denials — no agent should produce these
+unwrap_used = "deny"
+expect_used = "deny"            # test modules opt out via #[allow(..., reason = "...")]
+panic = "deny"
+todo = "deny"
+unimplemented = "deny"
+dbg_macro = "deny"
+print_stdout = "allow"          # CLI prints results to stdout (status/verify/doctor)
+print_stderr = "deny"
+wildcard_imports = "deny"
+missing_assert_message = "deny"
+allow_attributes_without_reason = "deny"   # every #[allow] must carry reason = "..."
+
+multiple_crate_versions = "allow"
+missing_errors_doc = "allow"    # doc-completeness deferred (follow-up)
+missing_panics_doc = "allow"
+missing_safety_doc = "allow"

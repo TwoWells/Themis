@@ -1,4 +1,9 @@
-#![allow(dead_code)] // Mocks might have unused methods in some tests
+#![allow(dead_code, reason = "mocks might have unused methods in some tests")]
+#![allow(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    reason = "test-only mocks lock infallible mutexes via unwrap"
+)]
 
 use crate::core::traits::{CommandExecutor, FileSystem, TemplateRenderer};
 use anyhow::{Result, bail};
@@ -15,6 +20,7 @@ pub struct MockFileSystem {
 }
 
 impl MockFileSystem {
+    #[must_use]
     pub fn new() -> Self {
         Self::default()
     }
@@ -32,7 +38,7 @@ impl FileSystem for MockFileSystem {
         let files = self.files.lock().unwrap();
         match files.get(path) {
             Some(content) => Ok(content.clone()),
-            None => bail!("MockFS: File not found: {:?}", path),
+            None => bail!("MockFS: File not found: {}", path.display()),
         }
     }
 
@@ -75,7 +81,7 @@ impl TemplateRenderer for MockTemplateRenderer {
         // Sufficient for unit testing logic flow, not engine correctness.
         let mut result = template.to_string();
         for (k, v) in context {
-            let placeholder = format!("{{{{ {} }}}}", k);
+            let placeholder = format!("{{{{ {k} }}}}");
             let replacement = match v {
                 Value::String(s) => s.clone(),
                 Value::Number(n) => n.to_string(),

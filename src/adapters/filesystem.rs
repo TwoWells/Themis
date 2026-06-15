@@ -8,21 +8,24 @@ pub struct RealFileSystem;
 
 impl FileSystem for RealFileSystem {
     fn read_to_string(&self, path: &Path) -> Result<String> {
-        fs::read_to_string(path).with_context(|| format!("Failed to read file: {:?}", path))
+        fs::read_to_string(path).with_context(|| format!("Failed to read file: {}", path.display()))
     }
 
     fn write_all(&self, path: &Path, content: &str) -> Result<()> {
         // Ensure parent directory exists
         if let Some(parent) = path.parent() {
-            fs::create_dir_all(parent)
-                .with_context(|| format!("Failed to create parent directory for {:?}", path))?;
+            fs::create_dir_all(parent).with_context(|| {
+                format!("Failed to create parent directory for {}", path.display())
+            })?;
         }
 
-        fs::write(path, content).with_context(|| format!("Failed to write file: {:?}", path))
+        fs::write(path, content)
+            .with_context(|| format!("Failed to write file: {}", path.display()))
     }
 
     fn create_dir_all(&self, path: &Path) -> Result<()> {
-        fs::create_dir_all(path).with_context(|| format!("Failed to create directory: {:?}", path))
+        fs::create_dir_all(path)
+            .with_context(|| format!("Failed to create directory: {}", path.display()))
     }
 
     fn create_symlink(&self, source: &Path, target: &Path) -> Result<()> {
@@ -36,8 +39,13 @@ impl FileSystem for RealFileSystem {
             fs::create_dir_all(parent)?;
         }
 
-        symlink(source, target)
-            .with_context(|| format!("Failed to symlink {:?} -> {:?}", source, target))
+        symlink(source, target).with_context(|| {
+            format!(
+                "Failed to symlink {} -> {}",
+                source.display(),
+                target.display()
+            )
+        })
     }
 
     fn exists(&self, path: &Path) -> bool {

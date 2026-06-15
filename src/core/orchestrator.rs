@@ -95,17 +95,20 @@ pub struct AppFailure {
 
 impl LoadResult {
     /// Returns true if all apps were configured successfully.
-    pub fn is_ok(&self) -> bool {
+    #[must_use]
+    pub const fn is_ok(&self) -> bool {
         self.failures.is_empty()
     }
 
     /// Returns the number of apps that failed.
-    pub fn failure_count(&self) -> usize {
+    #[must_use]
+    pub const fn failure_count(&self) -> usize {
         self.failures.len()
     }
 
     /// Returns the number of apps that succeeded.
-    pub fn success_count(&self) -> usize {
+    #[must_use]
+    pub const fn success_count(&self) -> usize {
         self.succeeded.len()
     }
 }
@@ -141,7 +144,7 @@ where
     }
 
     /// Create orchestrator with custom system dir (useful for testing)
-    pub fn with_system_dir(
+    pub const fn with_system_dir(
         fs: FS,
         template_renderer: TR,
         command_executor: CE,
@@ -188,7 +191,7 @@ where
                 "profile_name".to_string(),
                 Value::String(profile_name.to_string()),
             );
-            context.insert("app_name".to_string(), Value::String(app_name.to_string()));
+            context.insert("app_name".to_string(), Value::String(app_name.clone()));
 
             // 5. Execute Integration
             match self.apply_integration(integration, &context) {
@@ -199,7 +202,7 @@ where
                     error!("Failed to apply integration for {}: {:?}", app_name, e);
                     failures.push(AppFailure {
                         app_name: app_name.clone(),
-                        error: format!("{:?}", e),
+                        error: format!("{e:?}"),
                     });
                 }
             }
@@ -255,8 +258,7 @@ where
         // Cycle detection
         if !visited.insert(profile_name.to_string()) {
             bail!(
-                "Circular include detected: '{}' appears twice in the inheritance chain",
-                profile_name
+                "Circular include detected: '{profile_name}' appears twice in the inheritance chain"
             );
         }
 
@@ -285,8 +287,7 @@ where
         // Cycle detection
         if !visited.insert(palette_name.to_string()) {
             bail!(
-                "Circular include detected: '{}' appears twice in the inheritance chain",
-                palette_name
+                "Circular include detected: '{palette_name}' appears twice in the inheritance chain"
             );
         }
 
@@ -311,13 +312,13 @@ where
         let path = self
             .config_dir
             .join("profiles")
-            .join(format!("{}.yaml", name));
+            .join(format!("{name}.yaml"));
         let content = self
             .fs
             .read_to_string(&path)
-            .with_context(|| format!("Profile not found: {}", name))?;
+            .with_context(|| format!("Profile not found: {name}"))?;
 
-        serde_yaml::from_str(&content).with_context(|| format!("Failed to parse profile: {}", name))
+        serde_yaml::from_str(&content).with_context(|| format!("Failed to parse profile: {name}"))
     }
 
     /// Load a palette, searching user palettes first, then system palettes.
@@ -325,18 +326,18 @@ where
         let user_path = self
             .config_dir
             .join("palettes")
-            .join(format!("{}.yaml", name));
+            .join(format!("{name}.yaml"));
         let system_path = self
             .system_dir
             .join("palettes")
-            .join(format!("{}.yaml", name));
+            .join(format!("{name}.yaml"));
 
         // Try user palette first
         if self.fs.exists(&user_path) {
             debug!("Loading user palette: {:?}", user_path);
             let content = self.fs.read_to_string(&user_path)?;
             return serde_yaml::from_str(&content)
-                .with_context(|| format!("Failed to parse user palette: {}", name));
+                .with_context(|| format!("Failed to parse user palette: {name}"));
         }
 
         // Fall back to system palette
@@ -344,15 +345,16 @@ where
             debug!("Loading system palette: {:?}", system_path);
             let content = self.fs.read_to_string(&system_path)?;
             return serde_yaml::from_str(&content)
-                .with_context(|| format!("Failed to parse system palette: {}", name));
+                .with_context(|| format!("Failed to parse system palette: {name}"));
         }
 
-        bail!(
-            "Palette not found: {} (searched user and system directories)",
-            name
-        )
+        bail!("Palette not found: {name} (searched user and system directories)")
     }
 
+    #[allow(
+        clippy::similar_names,
+        reason = "`content` and `context` are distinct, well-established domain terms"
+    )]
     fn apply_integration(
         &self,
         integration: &Integration,
@@ -380,7 +382,7 @@ where
                 } else {
                     // Assume it's an embedded template path?
                     // For now, strict file path.
-                    bail!("Template file not found: {}", input_path);
+                    bail!("Template file not found: {input_path}");
                 };
 
                 // 3. Write output
@@ -496,7 +498,7 @@ where
 
         // Normalize signal: strip "SIG" prefix if present for pkill compatibility
         let signal_name = signal.strip_prefix("SIG").unwrap_or(signal);
-        let cmd = format!("pkill -{} {}", signal_name, app_name);
+        let cmd = format!("pkill -{signal_name} {app_name}");
         debug!("Sending signal: {}", cmd);
 
         // pkill returns non-zero if no process matched, which isn't necessarily an error

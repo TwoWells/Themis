@@ -94,7 +94,7 @@ pub fn run(config_dir: &Path) -> Result<()> {
     for dir in &dirs {
         let path = config_dir.join(dir);
         fs::create_dir_all(&path)
-            .with_context(|| format!("Failed to create directory: {:?}", path))?;
+            .with_context(|| format!("Failed to create directory: {}", path.display()))?;
         info!("Created {:?}", path);
     }
 

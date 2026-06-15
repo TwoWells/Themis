@@ -27,7 +27,7 @@ use std::fs;
 use std::path::Path;
 use tracing::info;
 
-/// A FileSystem adapter that reads real files but only logs writes.
+/// A `FileSystem` adapter that reads real files but only logs writes.
 ///
 /// This allows the orchestrator to read config files and templates
 /// while previewing what would be written without actually modifying
@@ -74,7 +74,7 @@ impl FileSystem for DryRunFileSystem {
     }
 }
 
-/// A CommandExecutor that logs commands instead of running them.
+/// A `CommandExecutor` that logs commands instead of running them.
 ///
 /// Shell commands and scripts are logged with their arguments and
 /// environment variables, allowing users to preview the exact

@@ -66,6 +66,7 @@ impl State {
     /// assert!(state.success);
     /// assert_eq!(state.current.unwrap().profile, "gruvbox");
     /// ```
+    #[must_use]
     pub fn new(profile: String) -> Self {
         Self {
             last_run: chrono_now(),
@@ -101,7 +102,7 @@ impl State {
 
         let content = fs::read_to_string(&path).context("Failed to read state file")?;
 
-        let state: State = serde_json::from_str(&content).context("Failed to parse state file")?;
+        let state: Self = serde_json::from_str(&content).context("Failed to parse state file")?;
 
         Ok(Some(state))
     }
@@ -133,7 +134,7 @@ impl State {
         }
 
         let content = fs::read_to_string(path).context("Failed to read state file")?;
-        let state: State = serde_json::from_str(&content).context("Failed to parse state file")?;
+        let state: Self = serde_json::from_str(&content).context("Failed to parse state file")?;
 
         Ok(Some(state))
     }
@@ -237,14 +238,17 @@ fn chrono_now() -> String {
 
     let day = remaining_days + 1;
 
-    format!(
-        "{:04}-{:02}-{:02}T{:02}:{:02}:{:02}Z",
-        year, month, day, hours, minutes, seconds
-    )
+    format!("{year:04}-{month:02}-{day:02}T{hours:02}:{minutes:02}:{seconds:02}Z")
 }
 
 #[cfg(test)]
 mod tests {
+    #![allow(
+        clippy::unwrap_used,
+        clippy::expect_used,
+        reason = "tests assert via unwrap/expect"
+    )]
+
     use super::*;
     use tempfile::TempDir;
 

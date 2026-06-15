@@ -8,7 +8,8 @@ use tera::{Context as TeraContext, Tera};
 pub struct TeraAdapter;
 
 impl TeraAdapter {
-    pub fn new() -> Self {
+    #[must_use]
+    pub const fn new() -> Self {
         Self
     }
 }
