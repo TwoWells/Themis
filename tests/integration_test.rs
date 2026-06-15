@@ -7,6 +7,8 @@ use themis::adapters::template::TeraAdapter;
 use themis::commands::{init, verify};
 use themis::core::orchestrator::Orchestrator;
 
+mod common;
+
 #[test]
 fn test_end_to_end_flow() {
     // 1. Setup Temp Dir
@@ -323,12 +325,11 @@ enroll:
     )
     .unwrap();
 
-    // Run doctor in subprocess with isolated HOME
-    let output = std::process::Command::new(env!("CARGO_BIN_EXE_themis"))
-        .args(["--config", config_dir.to_str().unwrap(), "doctor"])
-        .env("HOME", temp_dir.path())
-        .output()
-        .unwrap();
+    // Run doctor in an isolated subprocess
+    let mut cmd = std::process::Command::new(env!("CARGO_BIN_EXE_themis"));
+    cmd.args(["--config", config_dir.to_str().unwrap(), "doctor"]);
+    common::isolate_env(&mut cmd, temp_dir.path());
+    let output = cmd.output().unwrap();
 
     // Should exit with failure (missing include pattern)
     assert!(!output.status.success(), "Should fail when include missing");
@@ -371,12 +372,11 @@ enroll:
     )
     .unwrap();
 
-    // Run doctor in subprocess with isolated HOME
-    let output = std::process::Command::new(env!("CARGO_BIN_EXE_themis"))
-        .args(["--config", config_dir.to_str().unwrap(), "doctor"])
-        .env("HOME", temp_dir.path())
-        .output()
-        .unwrap();
+    // Run doctor in an isolated subprocess
+    let mut cmd = std::process::Command::new(env!("CARGO_BIN_EXE_themis"));
+    cmd.args(["--config", config_dir.to_str().unwrap(), "doctor"]);
+    common::isolate_env(&mut cmd, temp_dir.path());
+    let output = cmd.output().unwrap();
 
     assert!(
         output.status.success(),
@@ -405,12 +405,11 @@ enroll:
     )
     .unwrap();
 
-    // Run doctor in subprocess with isolated HOME
-    let output = std::process::Command::new(env!("CARGO_BIN_EXE_themis"))
-        .args(["--config", config_dir.to_str().unwrap(), "doctor"])
-        .env("HOME", temp_dir.path())
-        .output()
-        .unwrap();
+    // Run doctor in an isolated subprocess
+    let mut cmd = std::process::Command::new(env!("CARGO_BIN_EXE_themis"));
+    cmd.args(["--config", config_dir.to_str().unwrap(), "doctor"]);
+    common::isolate_env(&mut cmd, temp_dir.path());
+    let output = cmd.output().unwrap();
 
     // Should succeed (unknown apps are skipped, not failures)
     assert!(
@@ -424,12 +423,11 @@ enroll:
 fn test_status_shows_no_state_initially() {
     let temp_dir = TempDir::new().unwrap();
 
-    // Run status in subprocess with isolated HOME (no state file exists)
-    let output = std::process::Command::new(env!("CARGO_BIN_EXE_themis"))
-        .arg("status")
-        .env("HOME", temp_dir.path())
-        .output()
-        .unwrap();
+    // Run status in an isolated subprocess (no state file exists)
+    let mut cmd = std::process::Command::new(env!("CARGO_BIN_EXE_themis"));
+    cmd.arg("status");
+    common::isolate_env(&mut cmd, temp_dir.path());
+    let output = cmd.output().unwrap();
 
     assert!(output.status.success(), "Status should succeed");
     let stdout = String::from_utf8_lossy(&output.stdout);
@@ -457,16 +455,15 @@ fn test_status_shows_loaded_profile() {
     .unwrap();
 
     // Run load first
-    let load_output = std::process::Command::new(env!("CARGO_BIN_EXE_themis"))
-        .args([
-            "--config",
-            config_dir.to_str().unwrap(),
-            "load",
-            "test-profile",
-        ])
-        .env("HOME", temp_dir.path())
-        .output()
-        .unwrap();
+    let mut load_cmd = std::process::Command::new(env!("CARGO_BIN_EXE_themis"));
+    load_cmd.args([
+        "--config",
+        config_dir.to_str().unwrap(),
+        "load",
+        "test-profile",
+    ]);
+    common::isolate_env(&mut load_cmd, temp_dir.path());
+    let load_output = load_cmd.output().unwrap();
 
     assert!(
         load_output.status.success(),
@@ -475,11 +472,10 @@ fn test_status_shows_loaded_profile() {
     );
 
     // Now run status
-    let status_output = std::process::Command::new(env!("CARGO_BIN_EXE_themis"))
-        .arg("status")
-        .env("HOME", temp_dir.path())
-        .output()
-        .unwrap();
+    let mut status_cmd = std::process::Command::new(env!("CARGO_BIN_EXE_themis"));
+    status_cmd.arg("status");
+    common::isolate_env(&mut status_cmd, temp_dir.path());
+    let status_output = status_cmd.output().unwrap();
 
     assert!(status_output.status.success(), "Status should succeed");
     let stdout = String::from_utf8_lossy(&status_output.stdout);
@@ -506,17 +502,16 @@ fn test_dry_run_does_not_save_state() {
     .unwrap();
 
     // Run load with --dry-run
-    let load_output = std::process::Command::new(env!("CARGO_BIN_EXE_themis"))
-        .args([
-            "--config",
-            config_dir.to_str().unwrap(),
-            "load",
-            "test-profile",
-            "--dry-run",
-        ])
-        .env("HOME", temp_dir.path())
-        .output()
-        .unwrap();
+    let mut load_cmd = std::process::Command::new(env!("CARGO_BIN_EXE_themis"));
+    load_cmd.args([
+        "--config",
+        config_dir.to_str().unwrap(),
+        "load",
+        "test-profile",
+        "--dry-run",
+    ]);
+    common::isolate_env(&mut load_cmd, temp_dir.path());
+    let load_output = load_cmd.output().unwrap();
 
     assert!(
         load_output.status.success(),
@@ -525,11 +520,10 @@ fn test_dry_run_does_not_save_state() {
     );
 
     // Now run status - should show no state
-    let status_output = std::process::Command::new(env!("CARGO_BIN_EXE_themis"))
-        .arg("status")
-        .env("HOME", temp_dir.path())
-        .output()
-        .unwrap();
+    let mut status_cmd = std::process::Command::new(env!("CARGO_BIN_EXE_themis"));
+    status_cmd.arg("status");
+    common::isolate_env(&mut status_cmd, temp_dir.path());
+    let status_output = status_cmd.output().unwrap();
 
     assert!(status_output.status.success(), "Status should succeed");
     let stdout = String::from_utf8_lossy(&status_output.stdout);
@@ -557,13 +551,13 @@ fn test_status_respects_xdg_state_home() {
     )
     .unwrap();
 
-    // Run load with custom XDG_STATE_HOME
-    let load_output = std::process::Command::new(env!("CARGO_BIN_EXE_themis"))
-        .args(["--config", config_dir.to_str().unwrap(), "load", "xdg-test"])
-        .env("HOME", temp_dir.path())
-        .env("XDG_STATE_HOME", &custom_state_dir)
-        .output()
-        .unwrap();
+    // Run load with a custom XDG_STATE_HOME. Isolate first, then override
+    // XDG_STATE_HOME so this test still verifies the custom-dir behavior.
+    let mut load_cmd = std::process::Command::new(env!("CARGO_BIN_EXE_themis"));
+    load_cmd.args(["--config", config_dir.to_str().unwrap(), "load", "xdg-test"]);
+    common::isolate_env(&mut load_cmd, temp_dir.path());
+    load_cmd.env("XDG_STATE_HOME", &custom_state_dir);
+    let load_output = load_cmd.output().unwrap();
 
     assert!(
         load_output.status.success(),
@@ -579,12 +573,11 @@ fn test_status_respects_xdg_state_home() {
     );
 
     // Verify status reads from custom location
-    let status_output = std::process::Command::new(env!("CARGO_BIN_EXE_themis"))
-        .arg("status")
-        .env("HOME", temp_dir.path())
-        .env("XDG_STATE_HOME", &custom_state_dir)
-        .output()
-        .unwrap();
+    let mut status_cmd = std::process::Command::new(env!("CARGO_BIN_EXE_themis"));
+    status_cmd.arg("status");
+    common::isolate_env(&mut status_cmd, temp_dir.path());
+    status_cmd.env("XDG_STATE_HOME", &custom_state_dir);
+    let status_output = status_cmd.output().unwrap();
 
     let stdout = String::from_utf8_lossy(&status_output.stdout);
     assert!(
