@@ -120,26 +120,26 @@ fn verify_integration(
 
             // Check output parent directory exists
             let output_path = shellexpand::tilde(output);
-            if let Some(parent) = Path::new(output_path.as_ref()).parent() {
-                if !parent.exists() {
-                    result.warn(format!(
-                        "[{}] Output directory doesn't exist: {:?}",
-                        app_name, parent
-                    ));
-                }
+            if let Some(parent) = Path::new(output_path.as_ref()).parent()
+                && !parent.exists()
+            {
+                result.warn(format!(
+                    "[{}] Output directory doesn't exist: {:?}",
+                    app_name, parent
+                ));
             }
         }
         Integration::Symlink { target, .. } => {
             // Source is a template, we can't fully validate without context
             // But we can check if target parent exists
             let target_path = shellexpand::tilde(target);
-            if let Some(parent) = Path::new(target_path.as_ref()).parent() {
-                if !parent.exists() {
-                    result.warn(format!(
-                        "[{}] Symlink target directory doesn't exist: {:?}",
-                        app_name, parent
-                    ));
-                }
+            if let Some(parent) = Path::new(target_path.as_ref()).parent()
+                && !parent.exists()
+            {
+                result.warn(format!(
+                    "[{}] Symlink target directory doesn't exist: {:?}",
+                    app_name, parent
+                ));
             }
             info!("[{}] Symlink config: OK", app_name);
         }
@@ -194,13 +194,13 @@ fn verify_profiles(
             };
 
             // Check if included palette exists
-            if let Some(ref palette_name) = profile.include {
-                if !palette_exists(palette_name, config_dir, system_dir) {
-                    result.error(format!(
-                        "Profile '{}' includes palette '{}' which doesn't exist",
-                        name, palette_name
-                    ));
-                }
+            if let Some(ref palette_name) = profile.include
+                && !palette_exists(palette_name, config_dir, system_dir)
+            {
+                result.error(format!(
+                    "Profile '{}' includes palette '{}' which doesn't exist",
+                    name, palette_name
+                ));
             }
             info!("Profile '{}': OK", name);
         }
@@ -240,13 +240,13 @@ fn verify_palettes(
             };
 
             // Check if included palette exists
-            if let Some(ref parent_name) = palette.include {
-                if !palette_exists(parent_name, config_dir, system_dir) {
-                    result.error(format!(
-                        "Palette '{}' includes '{}' which doesn't exist",
-                        name, parent_name
-                    ));
-                }
+            if let Some(ref parent_name) = palette.include
+                && !palette_exists(parent_name, config_dir, system_dir)
+            {
+                result.error(format!(
+                    "Palette '{}' includes '{}' which doesn't exist",
+                    name, parent_name
+                ));
             }
             info!("Palette '{}': OK", name);
         }
