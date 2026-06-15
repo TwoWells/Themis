@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 Two Wells <contact@twowells.dev>
 //! State persistence for Themis.
 //!
 //! Tracks the currently loaded profile and saves it to disk following

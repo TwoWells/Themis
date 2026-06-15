@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 Two Wells <contact@twowells.dev>
 #![allow(dead_code, reason = "mocks might have unused methods in some tests")]
 #![allow(
     clippy::unwrap_used,

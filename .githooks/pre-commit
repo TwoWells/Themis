@@ -10,7 +10,16 @@ if ! cargo fmt -- --check; then
     exit 1
 fi
 
-# 2. Check Prettier Formatting
+# 2. Check SPDX copyright headers on staged .rs files (fast, fail early).
+rs_files=$(git diff --cached --name-only --diff-filter=ACM -- '*.rs')
+if [ -n "$rs_files" ]; then
+    if ! .githooks/check-copyright.sh $rs_files; then
+        echo "❌ Missing or incorrect SPDX header. Add the two-line AGPL header to the top of each flagged file."
+        exit 1
+    fi
+fi
+
+# 3. Check Prettier Formatting
 # Use npx if available, or just prettier
 if command -v prettier >/dev/null 2>&1; then
     if ! prettier --check .; then
@@ -21,7 +30,7 @@ else
     echo "⚠️  Prettier not found. Skipping web file checks."
 fi
 
-# 3. Run Tests (Optional - might be too slow for pre-commit?)
+# 4. Run Tests (Optional - might be too slow for pre-commit?)
 # For a small project, it's fine.
 if ! cargo test --quiet; then
     echo "❌ Tests failed."

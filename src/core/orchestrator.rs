@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 Two Wells <contact@twowells.dev>
 //! Core orchestration logic for Themis.
 //!
 //! The [`Orchestrator`] is the main entry point for loading profiles and
