@@ -1,10 +1,16 @@
-.PHONY: fmt lint test deny check build install install-completions uninstall clean setup setup-hooks setup-tools
+.PHONY: fmt lint test test-doc deny check build install install-completions uninstall clean setup setup-hooks setup-tools
 
 # Binary name (matches the package name in Cargo.toml)
 BIN := themis
 
 # Required cargo tools
 CARGO_TOOLS := cargo-deny cargo-machete cargo-nextest
+
+# Hard per-process address-space cap (KiB) applied to test runs, so a runaway
+# allocation aborts that single process at the limit instead of exhausting
+# system RAM. Override with MEMLIMIT_KB=<kib>, or MEMLIMIT_KB=unlimited to
+# disable.
+MEMLIMIT_KB ?= 8388608
 
 # Install paths (override with PREFIX=/usr for system install)
 PREFIX ?= /usr/local
@@ -25,9 +31,17 @@ lint:
 	cargo clippy -- -D warnings
 	prettier --check .
 
-# 3. Test
+# 3. Test (via cargo-nextest)
+# Pass T= to filter, N= to repeat (--stress-count), I=1 to include ignored.
+# Note: nextest does not run doctests; the `test-doc` target covers those.
 test:
-	cargo test
+	@if [ "$(MEMLIMIT_KB)" != unlimited ]; then ulimit -v $(MEMLIMIT_KB); fi; \
+	 cargo nextest run $(if $(I),--run-ignored all,) $(if $(N),--stress-count $(N),) $(if $(T),-E 'test($(T))',)
+
+# Doctests are not run by nextest; run them separately so `check` keeps
+# doctest coverage.
+test-doc:
+	cargo test --doc
 
 # 4. Dependency license + advisory gating (cargo-deny)
 # Retry on exit 139 (cargo-deny#855 segfault); give up after 5 tries.
@@ -44,7 +58,9 @@ deny:
 	 done
 
 # 5. Meta-task for CI/Pre-commit
-check: lint deny test
+# nextest (test) runs unit/integration tests; test-doc preserves doctest
+# coverage that nextest does not run.
+check: lint deny test test-doc
 
 # 6. Build
 build:
