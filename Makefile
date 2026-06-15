@@ -1,7 +1,10 @@
-.PHONY: fmt lint test test-doc deny machete check build install install-completions uninstall clean setup setup-hooks setup-tools
+.PHONY: fmt lint test test-doc deny machete check build install install-completions uninstall clean setup setup-hooks setup-tools pre-release-check bump-version next-patch next-minor next-major release release-patch release-minor release-major publish tag-current version
 
 # Binary name (matches the package name in Cargo.toml)
 BIN := themis
+
+# Current version, parsed from Cargo.toml
+CURRENT_VERSION := $(shell grep '^version = ' Cargo.toml | head -1 | sed 's/version = "\(.*\)"/\1/')
 
 # Required cargo tools
 CARGO_TOOLS := cargo-deny cargo-machete cargo-nextest
@@ -135,3 +138,98 @@ setup-tools:
 
 clean:
 	cargo clean
+
+# --- Release ---
+# Note: Cargo.lock is gitignored in Themis, so the recipes below stage and roll
+# back only Cargo.toml (touching the untracked lockfile with git would error).
+
+# Abort unless the working tree is clean, on main, and in sync with origin/main.
+pre-release-check:
+	@echo "Checking release prerequisites..."
+	@if [ -n "$$(git status --porcelain)" ]; then \
+		echo "Error: Working tree is not clean. Commit or stash changes first."; \
+		exit 1; \
+	fi
+	@if [ "$$(git branch --show-current)" != "main" ]; then \
+		echo "Error: Not on main branch."; \
+		exit 1; \
+	fi
+	@git fetch origin main --quiet
+	@if [ "$$(git rev-parse HEAD)" != "$$(git rev-parse origin/main)" ]; then \
+		echo "Error: Local main is not up to date with origin/main."; \
+		exit 1; \
+	fi
+	@echo "Prerequisites OK."
+
+# Bump the version in Cargo.toml (V=x.y.z) and refresh the lockfile via cargo check.
+bump-version:
+	@if [ -z "$(V)" ]; then \
+		echo "Error: Version not specified. Use V=x.y.z"; \
+		exit 1; \
+	fi
+	@echo "Bumping version: $(CURRENT_VERSION) -> $(V)"
+	@sed -i 's/^version = "$(CURRENT_VERSION)"/version = "$(V)"/' Cargo.toml
+	@cargo check --quiet
+	@echo "Version bumped to $(V)"
+
+next-patch:
+	$(eval V := $(shell echo $(CURRENT_VERSION) | awk -F. '{print $$1"."$$2"."$$3+1}'))
+
+next-minor:
+	$(eval V := $(shell echo $(CURRENT_VERSION) | awk -F. '{print $$1"."$$2+1".0"}'))
+
+next-major:
+	$(eval V := $(shell echo $(CURRENT_VERSION) | awk -F. '{print $$1+1".0.0"}'))
+
+# Cut a release locally: pre-flight checks -> bump -> check (rollback on fail) ->
+# commit -> annotated tag. Cargo.lock is gitignored, so only Cargo.toml is
+# rolled back / staged.
+release: pre-release-check
+	@if [ -z "$(V)" ]; then \
+		echo "Error: Version not specified. Use 'make release V=x.y.z' or 'make release-patch'"; \
+		exit 1; \
+	fi
+	@$(MAKE) bump-version V=$(V)
+	@if ! $(MAKE) check; then \
+		echo "Checks failed. Rolling back version bump..."; \
+		git checkout HEAD -- Cargo.toml; \
+		exit 1; \
+	fi
+	@git add Cargo.toml
+	@if ! git commit -m "chore: Bump version to $(V)"; then \
+		echo "Commit failed. Rolling back version bump..."; \
+		git checkout HEAD -- Cargo.toml; \
+		exit 1; \
+	fi
+	@git tag -a "v$(V)" -m "Release v$(V)"
+	@echo ""
+	@echo "Release v$(V) prepared locally."
+	@echo "Run 'make publish' to push and create the release."
+
+release-patch: pre-release-check next-patch
+	@$(MAKE) release V=$(V)
+
+release-minor: pre-release-check next-minor
+	@$(MAKE) release V=$(V)
+
+release-major: pre-release-check next-major
+	@$(MAKE) release V=$(V)
+
+publish:
+	@echo "Pushing to origin..."
+	@git push && git push --tags
+	@echo ""
+	@echo "Release v$(CURRENT_VERSION) pushed."
+
+tag-current:
+	@if git rev-parse "v$(CURRENT_VERSION)" >/dev/null 2>&1; then \
+		echo "Tag v$(CURRENT_VERSION) already exists."; \
+		exit 1; \
+	fi
+	@echo "Creating tag v$(CURRENT_VERSION) for current version..."
+	@git tag -a "v$(CURRENT_VERSION)" -m "Release v$(CURRENT_VERSION)"
+	@echo "Tag created. Run 'make publish' to push and release."
+
+version:
+	@echo "Current version: $(CURRENT_VERSION)"
+	@echo "Latest tag:      $$(git describe --tags --abbrev=0 2>/dev/null || echo 'none')"
