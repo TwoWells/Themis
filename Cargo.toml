@@ -5,7 +5,7 @@ edition = "2024"
 description = "A theme orchestrator CLI for Linux"
 repository = "https://github.com/TwoWells/Themis"
 homepage = "https://github.com/TwoWells/Themis"
-license = "GPL-3.0-or-later"
+license = "AGPL-3.0-or-later"
 keywords = ["theme", "linux", "cli", "dotfiles"]
 categories = ["command-line-utilities"]
 

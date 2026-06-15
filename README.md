@@ -231,4 +231,4 @@ include .themis.conf
 
 ## License
 
-GPL-3.0-or-later. See [LICENSE](LICENSE) for details.
+AGPL-3.0-or-later. See [LICENSE](LICENSE) for details.

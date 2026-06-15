@@ -1,4 +1,4 @@
-.PHONY: fmt lint test check build install install-completions uninstall clean setup setup-hooks setup-tools
+.PHONY: fmt lint test deny check build install install-completions uninstall clean setup setup-hooks setup-tools
 
 # Binary name (matches the package name in Cargo.toml)
 BIN := themis
@@ -29,14 +29,28 @@ lint:
 test:
 	cargo test
 
-# 4. Meta-task for CI/Pre-commit
-check: lint test
+# 4. Dependency license + advisory gating (cargo-deny)
+# Retry on exit 139 (cargo-deny#855 segfault); give up after 5 tries.
+deny:
+	@tries=0; while true; do \
+	   cargo deny --log-level error check; rc=$$?; \
+	   if [ $$rc -eq 0 ]; then break; \
+	   elif [ $$rc -ne 139 ]; then exit $$rc; \
+	   else \
+	     tries=$$((tries + 1)); \
+	     if [ $$tries -ge 5 ]; then echo "cargo-deny segfaulted 5 times, giving up"; exit 139; fi; \
+	     echo "cargo-deny segfaulted (EmbarkStudios/cargo-deny#855), retry $$tries/5..."; \
+	   fi; \
+	 done
 
-# 5. Build
+# 5. Meta-task for CI/Pre-commit
+check: lint deny test
+
+# 6. Build
 build:
 	cargo build --release
 
-# 6. Install (use sudo for system install, or PREFIX=~/.local for user install)
+# 7. Install (use sudo for system install, or PREFIX=~/.local for user install)
 install: build
 	install -Dm755 target/release/$(BIN) $(BINDIR)/$(BIN)
 ifeq ($(PREFIX),/usr)
@@ -56,14 +70,14 @@ install-completions:
 	target/release/$(BIN) completions zsh > $(ZSH_COMPLETION_DIR)/_$(BIN)
 	target/release/$(BIN) completions fish > $(FISH_COMPLETION_DIR)/$(BIN).fish
 
-# 7. Uninstall
+# 8. Uninstall
 uninstall:
 	rm -f $(BINDIR)/$(BIN)
 	rm -f $(BASH_COMPLETION_DIR)/$(BIN)
 	rm -f $(ZSH_COMPLETION_DIR)/_$(BIN)
 	rm -f $(FISH_COMPLETION_DIR)/$(BIN).fish
 
-# 8. Setup
+# 9. Setup
 # One-time setup: configure hooks and check tools
 setup: setup-hooks setup-tools
 
