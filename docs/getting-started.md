@@ -12,7 +12,7 @@ This guide walks you through installing Themis and creating your first profile.
 Requires [Rust](https://rustup.rs/) 1.70+.
 
 ```bash
-git clone https://github.com/m-wells/themis.git
+git clone https://github.com/TwoWells/Themis.git
 cd themis
 
 # User install (no sudo, installs to ~/.local)

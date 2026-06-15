@@ -8,7 +8,7 @@ export default defineConfig({
     starlight({
       title: "Themis",
       description: "A theme orchestrator CLI for Linux",
-      social: [{ icon: "github", label: "GitHub", href: "https://github.com/m-wells/themis" }],
+      social: [{ icon: "github", label: "GitHub", href: "https://github.com/TwoWells/Themis" }],
       sidebar: [
         { label: "Home", slug: "index" },
         { label: "Getting Started", slug: "getting-started" },

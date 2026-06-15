@@ -22,7 +22,7 @@ the _who, what, and when_ of applying themes.
 Requires [Rust](https://rustup.rs/) 1.70+.
 
 ```bash
-git clone https://github.com/m-wells/themis.git
+git clone https://github.com/TwoWells/Themis.git
 cd themis
 
 # User install (no sudo, installs to ~/.local)

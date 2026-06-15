@@ -4,7 +4,7 @@ use std::path::Path;
 use tracing::info;
 
 const SAMPLE_CONFIG: &str = r#"# Themis Configuration
-# See: https://github.com/your-repo/themis
+# See: https://github.com/TwoWells/Themis
 
 # Enroll applications to be themed.
 # Each app needs an integration type: template, symlink, command, or script.
