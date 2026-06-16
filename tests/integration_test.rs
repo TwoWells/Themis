@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Copyright (C) 2026 Two Wells <contact@twowells.dev>
+//! End-to-end integration tests exercising the real adapters against a
+//! temporary config directory.
 #![allow(
     clippy::unwrap_used,
     clippy::expect_used,

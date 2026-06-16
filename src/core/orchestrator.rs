@@ -135,6 +135,8 @@ where
     TR: TemplateRenderer,
     CE: CommandExecutor,
 {
+    /// Creates an orchestrator using the default system data directory
+    /// ([`SYSTEM_DATA_DIR`]).
     pub fn new(fs: FS, template_renderer: TR, command_executor: CE, config_dir: PathBuf) -> Self {
         Self {
             fs,
@@ -166,6 +168,13 @@ where
     ///
     /// Returns a `LoadResult` containing which apps succeeded and which failed.
     /// Early errors (config parsing, profile resolution) still return `Err`.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if `themis.yaml` cannot be read or parsed, or if the
+    /// profile (or an included palette) is missing, malformed, or contains a
+    /// circular include. Per-app integration failures do not error; they are
+    /// collected in the returned [`LoadResult`].
     pub fn load_profile(&self, profile_name: &str) -> Result<LoadResult> {
         info!("Loading profile: {}", profile_name);
 

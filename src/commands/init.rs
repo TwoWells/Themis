@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Copyright (C) 2026 Two Wells <contact@twowells.dev>
+//! The `init` command: scaffolds a config directory with sample files.
 use anyhow::{Context, Result};
 use std::fs;
 use std::path::Path;
@@ -80,6 +81,15 @@ vars:
   font_size: 12
 "##;
 
+/// Initializes a Themis config directory with sample files.
+///
+/// Creates the `profiles/`, `palettes/`, and `templates/` subdirectories and
+/// writes a sample `themis.yaml` and example profile. Does nothing if a config
+/// already exists at `config_dir`.
+///
+/// # Errors
+///
+/// Returns an error if a directory or sample file cannot be created.
 pub fn run(config_dir: &Path) -> Result<()> {
     // Check if already initialized
     let config_file = config_dir.join("themis.yaml");

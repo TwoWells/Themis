@@ -28,7 +28,7 @@ tempfile = "3.24.0"
 
 [lints.rust]
 unsafe_code = "forbid"
-missing_docs = "allow"          # doc-completeness deferred; flip to "warn" in a follow-up once docs are filled in
+missing_docs = "warn"
 
 [lints.clippy]
 pedantic = { level = "warn", priority = -1 }
@@ -49,9 +49,9 @@ missing_assert_message = "deny"
 allow_attributes_without_reason = "deny"   # every #[allow] must carry reason = "..."
 
 multiple_crate_versions = "allow"
-missing_errors_doc = "allow"    # doc-completeness deferred (follow-up)
-missing_panics_doc = "allow"
-missing_safety_doc = "allow"
+missing_errors_doc = "warn"
+missing_panics_doc = "warn"
+missing_safety_doc = "warn"
 
 [profile.release]
 panic = "abort"

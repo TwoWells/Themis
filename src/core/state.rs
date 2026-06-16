@@ -81,6 +81,10 @@ impl State {
     ///
     /// Returns `$XDG_STATE_HOME/themis/state.json` if `XDG_STATE_HOME` is set,
     /// otherwise `~/.local/state/themis/state.json`.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if neither `XDG_STATE_HOME` nor `HOME` is set.
     pub fn state_path() -> Result<PathBuf> {
         let state_home = if let Ok(xdg) = std::env::var("XDG_STATE_HOME") {
             PathBuf::from(xdg)
@@ -94,6 +98,11 @@ impl State {
     /// Load state from the default XDG location.
     ///
     /// Returns `Ok(None)` if no state file exists yet.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the state path cannot be determined, or if the file
+    /// exists but cannot be read or parsed.
     pub fn load() -> Result<Option<Self>> {
         let path = Self::state_path()?;
 
@@ -112,6 +121,10 @@ impl State {
     /// Load state from a specific path.
     ///
     /// Returns `Ok(None)` if the file doesn't exist.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the file exists but cannot be read or parsed.
     ///
     /// # Example
     ///
@@ -144,6 +157,11 @@ impl State {
     /// Save state to the default XDG location.
     ///
     /// Creates parent directories if they don't exist.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the state path cannot be determined or the file
+    /// cannot be written.
     pub fn save(&self) -> Result<()> {
         let path = Self::state_path()?;
         self.save_to(&path)
@@ -152,6 +170,10 @@ impl State {
     /// Save state to a specific path.
     ///
     /// Creates parent directories if they don't exist.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the parent directories or file cannot be written.
     ///
     /// # Example
     ///

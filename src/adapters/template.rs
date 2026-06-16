@@ -1,15 +1,18 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Copyright (C) 2026 Two Wells <contact@twowells.dev>
+//! Template rendering backed by the [Tera](https://keats.github.io/tera/) engine.
 use crate::core::traits::TemplateRenderer;
 use anyhow::{Context, Result};
 use serde_json::Value;
 use std::collections::HashMap;
 use tera::{Context as TeraContext, Tera};
 
+/// Renders templates with the Tera engine.
 #[derive(Default)]
 pub struct TeraAdapter;
 
 impl TeraAdapter {
+    /// Creates a new [`TeraAdapter`].
     #[must_use]
     pub const fn new() -> Self {
         Self

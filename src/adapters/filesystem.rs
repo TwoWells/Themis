@@ -1,11 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Copyright (C) 2026 Two Wells <contact@twowells.dev>
+//! Real filesystem I/O: reads, writes, directory creation, and symlinks.
 use crate::core::traits::FileSystem;
 use anyhow::{Context, Result};
 use std::fs;
 use std::os::unix::fs::symlink;
 use std::path::Path;
 
+/// Performs real filesystem operations, including forced symlink creation.
 pub struct RealFileSystem;
 
 impl FileSystem for RealFileSystem {

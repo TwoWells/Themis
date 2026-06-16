@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Copyright (C) 2026 Two Wells <contact@twowells.dev>
+//! The `doctor` command: checks that enrolled apps reference the partials
+//! Themis generates (e.g. an `include .themis.conf` line in `kitty.conf`).
 use anyhow::Result;
 use std::fs;
 use std::path::Path;
@@ -58,9 +60,13 @@ const APP_CHECKS: &[AppCheck] = &[
     },
 ];
 
+/// Outcome of a `doctor` run: which app configs are missing their include.
 pub struct DoctorResult {
+    /// Human-readable descriptions of problems found, with suggested fixes.
     pub issues: Vec<String>,
+    /// Number of apps whose config correctly includes the Themis partial.
     pub ok_count: usize,
+    /// Number of enrolled apps with no applicable config check (skipped).
     pub skipped_count: usize,
 }
 
@@ -73,12 +79,18 @@ impl DoctorResult {
         }
     }
 
+    /// Returns `true` if no issues were found.
     #[must_use]
     pub const fn is_healthy(&self) -> bool {
         self.issues.is_empty()
     }
 }
 
+/// Runs the doctor checks for every enrolled app in `config_dir`.
+///
+/// # Errors
+///
+/// Returns an error if the config file exists but cannot be read or parsed.
 pub fn run(config_dir: &Path) -> Result<DoctorResult> {
     let mut result = DoctorResult::new();
 

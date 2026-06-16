@@ -1,11 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Copyright (C) 2026 Two Wells <contact@twowells.dev>
+//! Real shell-command and script execution via `std::process::Command`.
 use crate::core::traits::CommandExecutor;
 use anyhow::{Context, Result};
 use std::collections::HashMap;
 use std::path::Path;
 use std::process::Command;
 
+/// Runs shell commands and external scripts on the real system.
 pub struct RealCommandExecutor;
 
 impl CommandExecutor for RealCommandExecutor {

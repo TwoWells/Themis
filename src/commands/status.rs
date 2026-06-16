@@ -1,15 +1,24 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Copyright (C) 2026 Two Wells <contact@twowells.dev>
+//! The `status` command: reports the currently loaded profile from saved state.
 use anyhow::Result;
 use tracing::info;
 
 use crate::core::state::State;
 
+/// The currently loaded profile and when it was last applied.
 pub struct StatusResult {
+    /// Name of the active profile, or `None` if nothing is loaded.
     pub profile: Option<String>,
+    /// Timestamp of the last successful load, or `None` if never run.
     pub last_run: Option<String>,
 }
 
+/// Reads persisted state and reports the current profile.
+///
+/// # Errors
+///
+/// Returns an error if the state file exists but cannot be read or parsed.
 pub fn run() -> Result<StatusResult> {
     let state = State::load()?;
 

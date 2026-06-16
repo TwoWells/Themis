@@ -1,5 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Copyright (C) 2026 Two Wells <contact@twowells.dev>
+//! Themis command-line entry point.
+//!
+//! Parses CLI arguments and dispatches to the `themis` library crate: loading
+//! profiles, running `init`/`verify`/`doctor`/`status`, and generating shell
+//! completions.
 use anyhow::{Context, Result};
 use clap::{CommandFactory, Parser, Subcommand};
 use clap_complete::{Shell, generate};

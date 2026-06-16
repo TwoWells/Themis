@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Copyright (C) 2026 Two Wells <contact@twowells.dev>
+//! The `verify` command: validates config syntax, template paths, and palette
+//! references without applying anything.
 use anyhow::{Context, Result};
 use std::path::Path;
 use tracing::{error, info, warn};
@@ -8,8 +10,11 @@ use crate::core::config::Config;
 use crate::core::integration::Integration;
 use crate::core::profile::Profile;
 
+/// Collected problems from a `verify` run.
 pub struct VerifyResult {
+    /// Fatal problems that must be fixed (invalid YAML, missing templates).
     pub errors: Vec<String>,
+    /// Non-fatal advisories (e.g. an output directory that doesn't exist yet).
     pub warnings: Vec<String>,
 }
 
@@ -29,12 +34,24 @@ impl VerifyResult {
         self.warnings.push(msg.into());
     }
 
+    /// Returns `true` if no errors were recorded (warnings are allowed).
     #[must_use]
     pub const fn is_ok(&self) -> bool {
         self.errors.is_empty()
     }
 }
 
+/// Verifies the configuration in `config_dir`, resolving palettes against
+/// `system_dir` as a fallback.
+///
+/// Always returns a [`VerifyResult`]; validation problems are collected into it
+/// rather than returned as errors. Check [`VerifyResult::is_ok`] for the verdict.
+///
+/// # Errors
+///
+/// Returns an error only on an unexpected I/O failure while reading the
+/// configuration tree; ordinary validation problems (missing files, invalid
+/// YAML) are recorded in the returned result instead.
 pub fn run(config_dir: &Path, system_dir: &Path) -> Result<VerifyResult> {
     let mut result = VerifyResult::new();
 
