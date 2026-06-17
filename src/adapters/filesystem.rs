@@ -10,6 +10,15 @@ use std::path::Path;
 /// Performs real filesystem operations, including forced symlink creation.
 pub struct RealFileSystem;
 
+// Mutation-testing note: cargo-mutants leaves the std-delegating leaf methods
+// here as documented survivors — `exists`/`is_file` (one-line wrappers over
+// `Path::exists`/`Path::is_file`) and `create_dir_all` (a trait method nothing
+// in the orchestrator path calls; `write_all`/`create_symlink` create parent
+// dirs via `std::fs` directly). The branching logic that consumes these — the
+// orchestrator's user-then-system palette fallback and template-presence check —
+// is pinned through MockFileSystem unit tests (no orchestrator mutants survive),
+// so mutating a leaf delegation only flips a value no assertion can observe
+// without re-testing `std::fs` itself.
 impl FileSystem for RealFileSystem {
     fn read_to_string(&self, path: &Path) -> Result<String> {
         fs::read_to_string(path).with_context(|| format!("Failed to read file: {}", path.display()))

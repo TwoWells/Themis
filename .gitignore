@@ -2,6 +2,9 @@
 /target/
 Cargo.lock
 
+# cargo-mutants output (mutants.out/ and the mutants.out.old/ backup)
+mutants.out*/
+
 # Themis Generated Files
 .themis.*
 

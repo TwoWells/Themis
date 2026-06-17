@@ -2,3 +2,5 @@ target/
 **/*.rs
 .git/
 *.lock
+mutants.out/
+mutants.out.old/

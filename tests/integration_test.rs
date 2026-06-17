@@ -93,6 +93,351 @@ fn test_end_to_end_flow() {
 }
 
 #[test]
+fn test_symlink_integration_with_real_adapters() {
+    // Exercises RealFileSystem::create_symlink end-to-end: the source path is
+    // rendered as a template ({{ mode }}), `~`-expanded, then linked at target.
+    let temp_dir = TempDir::new().unwrap();
+    let root = temp_dir.path();
+
+    let config_dir = root.join("config");
+    let profiles_dir = config_dir.join("profiles");
+    fs::create_dir_all(&profiles_dir).unwrap();
+
+    // A real source file that the symlink should point at, named by `mode`.
+    let source_file = root.join("dark.conf");
+    fs::write(&source_file, "real source contents").unwrap();
+
+    // Target lives under a directory that does NOT exist yet, so the link
+    // creation must also create the parent directory.
+    let target_link = root.join("nested/link.conf");
+
+    let config_content = format!(
+        r##"
+        enroll:
+          linked_app:
+            type: symlink
+            source: "{}/{{{{ mode }}}}.conf"
+            target: "{}"
+    "##,
+        root.display(),
+        target_link.display()
+    );
+    fs::write(config_dir.join("themis.yaml"), config_content).unwrap();
+
+    fs::write(
+        profiles_dir.join("test.yaml"),
+        r##"
+        vars:
+          mode: dark
+    "##,
+    )
+    .unwrap();
+
+    let orchestrator = Orchestrator::new(
+        RealFileSystem,
+        TeraAdapter::new(),
+        RealCommandExecutor,
+        config_dir,
+    );
+
+    let load_result = orchestrator.load_profile("test").unwrap();
+    assert!(
+        load_result.is_ok(),
+        "Apps failed: {:?}",
+        load_result.failures
+    );
+
+    // The link must exist and resolve to the source file's contents.
+    assert!(target_link.exists(), "Symlink target should exist");
+    let linked_contents = fs::read_to_string(&target_link).unwrap();
+    assert_eq!(
+        linked_contents, "real source contents",
+        "Symlink should resolve to the rendered source file"
+    );
+}
+
+#[test]
+fn test_symlink_integration_overwrites_existing_target() {
+    // RealFileSystem::create_symlink force-overwrites an existing target. This
+    // pins the `target.exists() || target.is_symlink()` guard: the target here
+    // is a pre-existing *regular* file, so only the `exists()` half is true.
+    let temp_dir = TempDir::new().unwrap();
+    let root = temp_dir.path();
+
+    let config_dir = root.join("config");
+    let profiles_dir = config_dir.join("profiles");
+    fs::create_dir_all(&profiles_dir).unwrap();
+
+    let source_file = root.join("source.conf");
+    fs::write(&source_file, "linked contents").unwrap();
+
+    // Pre-existing regular file at the target path; the link must replace it.
+    let target_link = root.join("target.conf");
+    fs::write(&target_link, "stale contents that must be replaced").unwrap();
+
+    let config_content = format!(
+        r##"
+        enroll:
+          linked_app:
+            type: symlink
+            source: "{}"
+            target: "{}"
+    "##,
+        source_file.display(),
+        target_link.display()
+    );
+    fs::write(config_dir.join("themis.yaml"), config_content).unwrap();
+
+    fs::write(profiles_dir.join("test.yaml"), "vars: {}\n").unwrap();
+
+    let orchestrator = Orchestrator::new(
+        RealFileSystem,
+        TeraAdapter::new(),
+        RealCommandExecutor,
+        config_dir,
+    );
+
+    let load_result = orchestrator.load_profile("test").unwrap();
+    assert!(
+        load_result.is_ok(),
+        "Linking over an existing file should succeed: {:?}",
+        load_result.failures
+    );
+
+    // The target must now resolve to the source's contents, not the stale data.
+    let linked_contents = fs::read_to_string(&target_link).unwrap();
+    assert_eq!(
+        linked_contents, "linked contents",
+        "Existing target should have been replaced by the new symlink"
+    );
+}
+
+#[test]
+fn test_command_integration_with_real_adapters() {
+    // Exercises RealCommandExecutor::run_command end-to-end: a rendered shell
+    // command runs and its side effect (a written file) is observable.
+    let temp_dir = TempDir::new().unwrap();
+    let root = temp_dir.path();
+
+    let config_dir = root.join("config");
+    let profiles_dir = config_dir.join("profiles");
+    fs::create_dir_all(&profiles_dir).unwrap();
+
+    let marker = root.join("marker.txt");
+
+    let config_content = format!(
+        r##"
+        enroll:
+          cmd_app:
+            type: command
+            commands:
+              - "printf '%s' {{{{ mode }}}} > {}"
+    "##,
+        marker.display()
+    );
+    fs::write(config_dir.join("themis.yaml"), config_content).unwrap();
+
+    fs::write(
+        profiles_dir.join("test.yaml"),
+        r##"
+        vars:
+          mode: dark
+    "##,
+    )
+    .unwrap();
+
+    let orchestrator = Orchestrator::new(
+        RealFileSystem,
+        TeraAdapter::new(),
+        RealCommandExecutor,
+        config_dir,
+    );
+
+    let load_result = orchestrator.load_profile("test").unwrap();
+    assert!(
+        load_result.is_ok(),
+        "Apps failed: {:?}",
+        load_result.failures
+    );
+
+    let written = fs::read_to_string(&marker).unwrap();
+    assert_eq!(
+        written, "dark",
+        "The rendered shell command should have run and written the marker"
+    );
+}
+
+#[test]
+fn test_command_integration_reports_failure_with_real_adapters() {
+    // A command that exits non-zero must surface as an app failure, pinning
+    // RealCommandExecutor's `!output.status.success()` error path.
+    let temp_dir = TempDir::new().unwrap();
+    let root = temp_dir.path();
+
+    let config_dir = root.join("config");
+    let profiles_dir = config_dir.join("profiles");
+    fs::create_dir_all(&profiles_dir).unwrap();
+
+    fs::write(
+        config_dir.join("themis.yaml"),
+        r##"
+        enroll:
+          failing_app:
+            type: command
+            commands:
+              - "exit 3"
+    "##,
+    )
+    .unwrap();
+
+    fs::write(
+        profiles_dir.join("test.yaml"),
+        r##"
+        vars: {}
+    "##,
+    )
+    .unwrap();
+
+    let orchestrator = Orchestrator::new(
+        RealFileSystem,
+        TeraAdapter::new(),
+        RealCommandExecutor,
+        config_dir,
+    );
+
+    let load_result = orchestrator.load_profile("test").unwrap();
+    assert!(
+        !load_result.is_ok(),
+        "A non-zero command should produce a failure"
+    );
+    assert_eq!(load_result.failure_count(), 1);
+    assert_eq!(load_result.failures[0].app_name, "failing_app");
+}
+
+#[test]
+fn test_script_integration_with_real_adapters() {
+    // Exercises RealCommandExecutor::run_script end-to-end with a real
+    // executable, asserting both the success path and that a THEMIS_* env var
+    // reaches the script.
+    use std::os::unix::fs::PermissionsExt;
+
+    let temp_dir = TempDir::new().unwrap();
+    let root = temp_dir.path();
+
+    let config_dir = root.join("config");
+    let profiles_dir = config_dir.join("profiles");
+    fs::create_dir_all(&profiles_dir).unwrap();
+
+    let marker = root.join("script-marker.txt");
+    let script_path = root.join("theme.sh");
+    fs::write(
+        &script_path,
+        format!(
+            "#!/bin/sh\nprintf '%s' \"$THEMIS_MODE\" > {}\n",
+            marker.display()
+        ),
+    )
+    .unwrap();
+    let mut perms = fs::metadata(&script_path).unwrap().permissions();
+    perms.set_mode(0o755);
+    fs::set_permissions(&script_path, perms).unwrap();
+
+    let config_content = format!(
+        r##"
+        enroll:
+          scripted_app:
+            type: script
+            path: "{}"
+    "##,
+        script_path.display()
+    );
+    fs::write(config_dir.join("themis.yaml"), config_content).unwrap();
+
+    fs::write(
+        profiles_dir.join("test.yaml"),
+        r##"
+        vars:
+          mode: dark
+    "##,
+    )
+    .unwrap();
+
+    let orchestrator = Orchestrator::new(
+        RealFileSystem,
+        TeraAdapter::new(),
+        RealCommandExecutor,
+        config_dir,
+    );
+
+    let load_result = orchestrator.load_profile("test").unwrap();
+    assert!(
+        load_result.is_ok(),
+        "Apps failed: {:?}",
+        load_result.failures
+    );
+
+    let written = fs::read_to_string(&marker).unwrap();
+    assert_eq!(
+        written, "dark",
+        "The script should have run with THEMIS_MODE in its environment"
+    );
+}
+
+#[test]
+fn test_script_integration_reports_failure_with_real_adapters() {
+    // A script that exits non-zero must surface as an app failure, pinning
+    // RealCommandExecutor::run_script's `!output.status.success()` error path.
+    use std::os::unix::fs::PermissionsExt;
+
+    let temp_dir = TempDir::new().unwrap();
+    let root = temp_dir.path();
+
+    let config_dir = root.join("config");
+    let profiles_dir = config_dir.join("profiles");
+    fs::create_dir_all(&profiles_dir).unwrap();
+
+    let script_path = root.join("failing.sh");
+    fs::write(&script_path, "#!/bin/sh\nexit 4\n").unwrap();
+    let mut perms = fs::metadata(&script_path).unwrap().permissions();
+    perms.set_mode(0o755);
+    fs::set_permissions(&script_path, perms).unwrap();
+
+    let config_content = format!(
+        r##"
+        enroll:
+          scripted_app:
+            type: script
+            path: "{}"
+    "##,
+        script_path.display()
+    );
+    fs::write(config_dir.join("themis.yaml"), config_content).unwrap();
+
+    fs::write(
+        profiles_dir.join("test.yaml"),
+        r##"
+        vars: {}
+    "##,
+    )
+    .unwrap();
+
+    let orchestrator = Orchestrator::new(
+        RealFileSystem,
+        TeraAdapter::new(),
+        RealCommandExecutor,
+        config_dir,
+    );
+
+    let load_result = orchestrator.load_profile("test").unwrap();
+    assert!(
+        !load_result.is_ok(),
+        "A non-zero script should produce a failure"
+    );
+    assert_eq!(load_result.failure_count(), 1);
+    assert_eq!(load_result.failures[0].app_name, "scripted_app");
+}
+
+#[test]
 fn test_dry_run_does_not_write_files() {
     // 1. Setup Temp Dir
     let temp_dir = TempDir::new().unwrap();
@@ -313,6 +658,473 @@ vars: {}
 }
 
 #[test]
+fn test_verify_detects_missing_template() {
+    let temp_dir = TempDir::new().unwrap();
+    let config_dir = temp_dir.path().join("config");
+    let system_dir = temp_dir.path().join("system");
+
+    fs::create_dir_all(&config_dir).unwrap();
+    fs::create_dir_all(&system_dir).unwrap();
+
+    // Enroll an app whose template file does not exist.
+    fs::write(
+        config_dir.join("themis.yaml"),
+        format!(
+            r#"
+enroll:
+  kitty:
+    type: template
+    input: "{}/does-not-exist.j2"
+    output: "{}/out/kitty.conf"
+"#,
+            config_dir.display(),
+            config_dir.display()
+        ),
+    )
+    .unwrap();
+
+    let result = verify::run(&config_dir, &system_dir).unwrap();
+    assert!(
+        !result.is_ok(),
+        "Missing template should make verify fail: {:?}",
+        result.errors
+    );
+    assert!(
+        result
+            .errors
+            .iter()
+            .any(|e| e.contains("Template not found") && e.contains("kitty")),
+        "Expected a template-not-found error: {:?}",
+        result.errors
+    );
+}
+
+#[test]
+fn test_verify_detects_missing_script() {
+    let temp_dir = TempDir::new().unwrap();
+    let config_dir = temp_dir.path().join("config");
+    let system_dir = temp_dir.path().join("system");
+
+    fs::create_dir_all(&config_dir).unwrap();
+    fs::create_dir_all(&system_dir).unwrap();
+
+    fs::write(
+        config_dir.join("themis.yaml"),
+        format!(
+            r#"
+enroll:
+  myapp:
+    type: script
+    path: "{}/no-such-script.sh"
+"#,
+            config_dir.display()
+        ),
+    )
+    .unwrap();
+
+    let result = verify::run(&config_dir, &system_dir).unwrap();
+    assert!(
+        !result.is_ok(),
+        "Missing script should make verify fail: {:?}",
+        result.errors
+    );
+    assert!(
+        result
+            .errors
+            .iter()
+            .any(|e| e.contains("Script not found") && e.contains("myapp")),
+        "Expected a script-not-found error: {:?}",
+        result.errors
+    );
+}
+
+#[test]
+fn test_verify_warns_on_missing_output_directory() {
+    let temp_dir = TempDir::new().unwrap();
+    let config_dir = temp_dir.path().join("config");
+    let system_dir = temp_dir.path().join("system");
+
+    fs::create_dir_all(&config_dir).unwrap();
+    fs::create_dir_all(&system_dir).unwrap();
+
+    // Template exists, but the output parent directory does not.
+    let template_path = config_dir.join("kitty.j2");
+    fs::write(&template_path, "test").unwrap();
+
+    fs::write(
+        config_dir.join("themis.yaml"),
+        format!(
+            r#"
+enroll:
+  kitty:
+    type: template
+    input: "{}"
+    output: "{}/nonexistent-dir/kitty.conf"
+"#,
+            template_path.display(),
+            config_dir.display()
+        ),
+    )
+    .unwrap();
+
+    let result = verify::run(&config_dir, &system_dir).unwrap();
+    // No errors: the template exists and the YAML is valid.
+    assert!(
+        result.is_ok(),
+        "Verify should pass (only a warning expected): {:?}",
+        result.errors
+    );
+    assert!(
+        result
+            .warnings
+            .iter()
+            .any(|w| w.contains("Output directory doesn't exist")),
+        "Expected a missing-output-directory warning: {:?}",
+        result.warnings
+    );
+}
+
+#[test]
+fn test_verify_resolves_palette_from_user_directory() {
+    let temp_dir = TempDir::new().unwrap();
+    let config_dir = temp_dir.path().join("config");
+    let system_dir = temp_dir.path().join("system");
+
+    fs::create_dir_all(config_dir.join("profiles")).unwrap();
+    fs::create_dir_all(config_dir.join("palettes")).unwrap();
+    fs::create_dir_all(system_dir.join("palettes")).unwrap();
+
+    fs::write(config_dir.join("themis.yaml"), "enroll: {}").unwrap();
+
+    // Profile includes a palette that exists ONLY in the user palettes dir.
+    fs::write(
+        config_dir.join("profiles/test.yaml"),
+        r#"
+include: user-only
+vars: {}
+"#,
+    )
+    .unwrap();
+    fs::write(
+        config_dir.join("palettes/user-only.yaml"),
+        "vars:\n  bg: \"#000000\"",
+    )
+    .unwrap();
+
+    let result = verify::run(&config_dir, &system_dir).unwrap();
+    assert!(
+        result.is_ok(),
+        "A palette present only in the user dir should resolve: {:?}",
+        result.errors
+    );
+    assert!(
+        !result.errors.iter().any(|e| e.contains("doesn't exist")),
+        "Should not report the user palette as missing: {:?}",
+        result.errors
+    );
+}
+
+#[test]
+fn test_verify_resolves_palette_from_system_directory() {
+    let temp_dir = TempDir::new().unwrap();
+    let config_dir = temp_dir.path().join("config");
+    let system_dir = temp_dir.path().join("system");
+
+    fs::create_dir_all(config_dir.join("profiles")).unwrap();
+    fs::create_dir_all(system_dir.join("palettes")).unwrap();
+
+    fs::write(config_dir.join("themis.yaml"), "enroll: {}").unwrap();
+
+    // Profile includes a palette that exists ONLY in the system palettes dir.
+    fs::write(
+        config_dir.join("profiles/test.yaml"),
+        r#"
+include: system-only
+vars: {}
+"#,
+    )
+    .unwrap();
+    fs::write(
+        system_dir.join("palettes/system-only.yaml"),
+        "vars:\n  bg: \"#000000\"",
+    )
+    .unwrap();
+
+    let result = verify::run(&config_dir, &system_dir).unwrap();
+    assert!(
+        result.is_ok(),
+        "A palette present only in the system dir should resolve: {:?}",
+        result.errors
+    );
+    assert!(
+        !result.errors.iter().any(|e| e.contains("doesn't exist")),
+        "Should not report the system palette as missing: {:?}",
+        result.errors
+    );
+}
+
+#[test]
+fn test_verify_warns_on_missing_symlink_target_directory() {
+    let temp_dir = TempDir::new().unwrap();
+    let config_dir = temp_dir.path().join("config");
+    let system_dir = temp_dir.path().join("system");
+
+    fs::create_dir_all(&config_dir).unwrap();
+    fs::create_dir_all(&system_dir).unwrap();
+
+    // A symlink integration whose target lives in a directory that does not
+    // exist yet must produce a warning (not an error).
+    fs::write(
+        config_dir.join("themis.yaml"),
+        format!(
+            r#"
+enroll:
+  linked:
+    type: symlink
+    source: "{}/src.conf"
+    target: "{}/missing-dir/link.conf"
+"#,
+            config_dir.display(),
+            config_dir.display()
+        ),
+    )
+    .unwrap();
+
+    let result = verify::run(&config_dir, &system_dir).unwrap();
+    assert!(
+        result.is_ok(),
+        "Symlink with a missing target dir is a warning, not an error: {:?}",
+        result.errors
+    );
+    assert!(
+        result
+            .warnings
+            .iter()
+            .any(|w| w.contains("Symlink target directory doesn't exist")),
+        "Expected a missing-symlink-target-dir warning: {:?}",
+        result.warnings
+    );
+}
+
+#[test]
+fn test_verify_ignores_non_yaml_files_in_profiles() {
+    let temp_dir = TempDir::new().unwrap();
+    let config_dir = temp_dir.path().join("config");
+    let system_dir = temp_dir.path().join("system");
+
+    fs::create_dir_all(config_dir.join("profiles")).unwrap();
+    fs::create_dir_all(&system_dir).unwrap();
+
+    fs::write(config_dir.join("themis.yaml"), "enroll: {}").unwrap();
+
+    // A non-YAML file in the profiles dir must be ignored entirely — even
+    // though its contents are not valid YAML, verify must not try to parse it.
+    fs::write(
+        config_dir.join("profiles/README.txt"),
+        "this is not: valid: yaml: [ and must be ignored",
+    )
+    .unwrap();
+
+    let result = verify::run(&config_dir, &system_dir).unwrap();
+    assert!(
+        result.is_ok(),
+        "A .txt file in profiles/ must be skipped, not parsed: {:?}",
+        result.errors
+    );
+    assert!(
+        result.errors.is_empty(),
+        "No errors expected from a non-YAML profile file: {:?}",
+        result.errors
+    );
+}
+
+#[test]
+fn test_verify_processes_yml_extension_profiles() {
+    let temp_dir = TempDir::new().unwrap();
+    let config_dir = temp_dir.path().join("config");
+    let system_dir = temp_dir.path().join("system");
+
+    fs::create_dir_all(config_dir.join("profiles")).unwrap();
+    fs::create_dir_all(&system_dir).unwrap();
+
+    fs::write(config_dir.join("themis.yaml"), "enroll: {}").unwrap();
+
+    // A profile using the `.yml` (not `.yaml`) extension must still be
+    // validated: this one includes a missing palette, which must be reported.
+    fs::write(
+        config_dir.join("profiles/legacy.yml"),
+        r#"
+include: nonexistent-palette
+vars: {}
+"#,
+    )
+    .unwrap();
+
+    let result = verify::run(&config_dir, &system_dir).unwrap();
+    assert!(
+        result
+            .errors
+            .iter()
+            .any(|e| e.contains("legacy") && e.contains("doesn't exist")),
+        "A .yml profile should be validated like .yaml: {:?}",
+        result.errors
+    );
+}
+
+#[test]
+fn test_verify_detects_palette_with_missing_include() {
+    let temp_dir = TempDir::new().unwrap();
+    let config_dir = temp_dir.path().join("config");
+    let system_dir = temp_dir.path().join("system");
+
+    fs::create_dir_all(config_dir.join("palettes")).unwrap();
+    fs::create_dir_all(&system_dir).unwrap();
+
+    fs::write(config_dir.join("themis.yaml"), "enroll: {}").unwrap();
+
+    // A palette that includes a parent palette which does not exist must be
+    // reported as an error.
+    fs::write(
+        config_dir.join("palettes/child.yaml"),
+        r#"
+include: missing-parent
+vars: {}
+"#,
+    )
+    .unwrap();
+
+    let result = verify::run(&config_dir, &system_dir).unwrap();
+    assert!(
+        result
+            .errors
+            .iter()
+            .any(|e| e.contains("child") && e.contains("doesn't exist")),
+        "A palette including a missing parent should error: {:?}",
+        result.errors
+    );
+}
+
+#[test]
+fn test_verify_processes_yml_extension_palettes() {
+    let temp_dir = TempDir::new().unwrap();
+    let config_dir = temp_dir.path().join("config");
+    let system_dir = temp_dir.path().join("system");
+
+    fs::create_dir_all(config_dir.join("palettes")).unwrap();
+    fs::create_dir_all(&system_dir).unwrap();
+
+    fs::write(config_dir.join("themis.yaml"), "enroll: {}").unwrap();
+
+    // A palette using the `.yml` (not `.yaml`) extension must still be
+    // validated: this one includes a missing parent, which must be reported.
+    fs::write(
+        config_dir.join("palettes/legacy.yml"),
+        r#"
+include: missing-parent
+vars: {}
+"#,
+    )
+    .unwrap();
+
+    let result = verify::run(&config_dir, &system_dir).unwrap();
+    assert!(
+        result
+            .errors
+            .iter()
+            .any(|e| e.contains("legacy") && e.contains("doesn't exist")),
+        "A .yml palette should be validated like .yaml: {:?}",
+        result.errors
+    );
+}
+
+#[test]
+fn test_verify_detects_invalid_palette_yaml() {
+    let temp_dir = TempDir::new().unwrap();
+    let config_dir = temp_dir.path().join("config");
+    let system_dir = temp_dir.path().join("system");
+
+    fs::create_dir_all(config_dir.join("palettes")).unwrap();
+    fs::create_dir_all(&system_dir).unwrap();
+
+    fs::write(config_dir.join("themis.yaml"), "enroll: {}").unwrap();
+
+    // Invalid palette YAML (a .yaml file, so it passes the extension filter).
+    fs::write(
+        config_dir.join("palettes/bad.yaml"),
+        "this is not: valid: yaml: [",
+    )
+    .unwrap();
+
+    let result = verify::run(&config_dir, &system_dir).unwrap();
+    assert!(
+        result
+            .errors
+            .iter()
+            .any(|e| e.contains("Palette 'bad'") && e.contains("invalid YAML")),
+        "Should detect invalid palette YAML: {:?}",
+        result.errors
+    );
+}
+
+#[test]
+fn test_verify_cli_exits_nonzero_on_error() {
+    // Drives the `verify` subcommand through main() so the `if !result.is_ok()`
+    // exit branch is exercised: a config enrolling a template that doesn't
+    // exist must make the process exit non-zero.
+    let temp_dir = TempDir::new().unwrap();
+    let config_dir = temp_dir.path().join("config");
+    fs::create_dir_all(&config_dir).unwrap();
+
+    fs::write(
+        config_dir.join("themis.yaml"),
+        format!(
+            r#"
+enroll:
+  kitty:
+    type: template
+    input: "{}/missing.j2"
+    output: "{}/out/kitty.conf"
+"#,
+            config_dir.display(),
+            config_dir.display()
+        ),
+    )
+    .unwrap();
+
+    let mut cmd = std::process::Command::new(env!("CARGO_BIN_EXE_themis"));
+    cmd.args(["--config", config_dir.to_str().unwrap(), "verify"]);
+    common::isolate_env(&mut cmd, temp_dir.path());
+    let output = cmd.output().unwrap();
+
+    assert!(
+        !output.status.success(),
+        "verify should exit non-zero when a template is missing"
+    );
+}
+
+#[test]
+fn test_verify_cli_exits_zero_on_valid_config() {
+    // The complementary success branch: a valid config makes `verify` exit 0.
+    let temp_dir = TempDir::new().unwrap();
+    let config_dir = temp_dir.path().join("config");
+    fs::create_dir_all(&config_dir).unwrap();
+
+    // Empty enrollment is valid; nothing to fail on.
+    fs::write(config_dir.join("themis.yaml"), "enroll: {}").unwrap();
+
+    let mut cmd = std::process::Command::new(env!("CARGO_BIN_EXE_themis"));
+    cmd.args(["--config", config_dir.to_str().unwrap(), "verify"]);
+    common::isolate_env(&mut cmd, temp_dir.path());
+    let output = cmd.output().unwrap();
+
+    assert!(
+        output.status.success(),
+        "verify should exit zero on a valid config: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+}
+
+#[test]
 fn test_doctor_detects_missing_include() {
     let temp_dir = TempDir::new().unwrap();
     let config_dir = temp_dir.path().join("config");
@@ -432,6 +1244,114 @@ enroll:
         output.status.success(),
         "Should succeed when only unknown apps: {}",
         String::from_utf8_lossy(&output.stderr)
+    );
+}
+
+#[test]
+fn test_doctor_counts_multiple_skipped_apps() {
+    let temp_dir = TempDir::new().unwrap();
+    let config_dir = temp_dir.path().join("config");
+
+    fs::create_dir_all(&config_dir).unwrap();
+
+    // Enroll two apps with no doctor check defined: both are skipped. Using
+    // two (not one) makes the skipped counter's increment observable — a
+    // mutant that turns `+= 1` into `*= 1` leaves the count stuck below 2.
+    fs::write(
+        config_dir.join("themis.yaml"),
+        r#"
+enroll:
+  gtk:
+    type: command
+    commands:
+      - "gsettings set org.gnome.desktop.interface color-scheme prefer-dark"
+  custom-thing:
+    type: command
+    commands:
+      - "true"
+"#,
+    )
+    .unwrap();
+
+    let mut cmd = std::process::Command::new(env!("CARGO_BIN_EXE_themis"));
+    cmd.args(["--config", config_dir.to_str().unwrap(), "doctor"]);
+    common::isolate_env(&mut cmd, temp_dir.path());
+    let output = cmd.output().unwrap();
+
+    assert!(output.status.success(), "Should succeed when all skipped");
+    let combined = format!(
+        "{}{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(
+        combined.contains("2 skipped"),
+        "Should report two skipped apps: {}",
+        combined
+    );
+}
+
+#[test]
+fn test_doctor_counts_multiple_ok_apps() {
+    let temp_dir = TempDir::new().unwrap();
+    let config_dir = temp_dir.path().join("config");
+
+    fs::create_dir_all(&config_dir).unwrap();
+
+    // Enroll two known apps (kitty, foot) whose configs each carry the
+    // expected include line. Using two makes the OK counter's increment
+    // observable: a `+= 1` -> `*= 1` mutant cannot reach 2.
+    fs::write(
+        config_dir.join("themis.yaml"),
+        r#"
+enroll:
+  kitty:
+    type: template
+    input: "~/.config/themis/templates/kitty.j2"
+    output: "~/.config/kitty/.themis.conf"
+  foot:
+    type: template
+    input: "~/.config/themis/templates/foot.j2"
+    output: "~/.config/foot/themis.ini"
+"#,
+    )
+    .unwrap();
+
+    let kitty_dir = temp_dir.path().join(".config/kitty");
+    fs::create_dir_all(&kitty_dir).unwrap();
+    fs::write(
+        kitty_dir.join("kitty.conf"),
+        "# Kitty config\ninclude .themis.conf\n",
+    )
+    .unwrap();
+
+    let foot_dir = temp_dir.path().join(".config/foot");
+    fs::create_dir_all(&foot_dir).unwrap();
+    fs::write(
+        foot_dir.join("foot.ini"),
+        "include=~/.config/foot/themis.ini\n",
+    )
+    .unwrap();
+
+    let mut cmd = std::process::Command::new(env!("CARGO_BIN_EXE_themis"));
+    cmd.args(["--config", config_dir.to_str().unwrap(), "doctor"]);
+    common::isolate_env(&mut cmd, temp_dir.path());
+    let output = cmd.output().unwrap();
+
+    assert!(
+        output.status.success(),
+        "Should succeed when both includes present: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let combined = format!(
+        "{}{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(
+        combined.contains("2 OK"),
+        "Should report two OK apps: {}",
+        combined
     );
 }
 

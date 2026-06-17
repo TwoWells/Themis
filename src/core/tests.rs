@@ -425,6 +425,7 @@ mod tests {
               name: test
             vars:
               colors: ["#111111", "#222222", "#333333"]
+              mixed: ["#111111", 42, true]
               single: "value"
               number: 42
         "##,
@@ -443,6 +444,13 @@ mod tests {
             Some(&"#111111:#222222:#333333".to_string()),
             "Array should be colon-delimited"
         );
+        // A mixed array must stringify each scalar element (string, number,
+        // bool) before colon-joining — pins the inner match arms.
+        assert_eq!(
+            env.get("THEMIS_MIXED"),
+            Some(&"#111111:42:true".to_string()),
+            "Mixed-type array should stringify numbers and bools, not drop them"
+        );
         assert_eq!(
             env.get("THEMIS_SINGLE"),
             Some(&"value".to_string()),
@@ -453,6 +461,189 @@ mod tests {
             Some(&"42".to_string()),
             "Number should stringify"
         );
+    }
+
+    #[test]
+    fn test_script_env_scalar_types_round_trip() {
+        let (fs, cmd, orchestrator) = setup_with_executor();
+
+        fs.add_file(
+            "/config/themis.yaml",
+            r##"
+            enroll:
+              myapp:
+                type: script
+                path: /usr/bin/theme-script
+        "##,
+        );
+
+        fs.add_file(
+            "/config/profiles/test.yaml",
+            r##"
+            metadata:
+              name: test
+            vars:
+              flag: true
+              other_flag: false
+              count: 7
+        "##,
+        );
+
+        let load_result = orchestrator.load_profile("test").unwrap();
+        assert!(
+            load_result.is_ok(),
+            "Apps failed: {:?}",
+            load_result.failures
+        );
+
+        let env = cmd.script_env.lock().unwrap();
+        assert_eq!(
+            env.get("THEMIS_FLAG"),
+            Some(&"true".to_string()),
+            "Bool true should stringify"
+        );
+        assert_eq!(
+            env.get("THEMIS_OTHER_FLAG"),
+            Some(&"false".to_string()),
+            "Bool false should stringify"
+        );
+        assert_eq!(
+            env.get("THEMIS_COUNT"),
+            Some(&"7".to_string()),
+            "Number should stringify"
+        );
+    }
+
+    #[test]
+    fn test_script_explicit_env_overrides_themis_vars() {
+        let (fs, cmd, orchestrator) = setup_with_executor();
+
+        fs.add_file(
+            "/config/themis.yaml",
+            r##"
+            enroll:
+              myapp:
+                type: script
+                path: /usr/bin/theme-script
+                env:
+                  CUSTOM_KEY: custom_value
+        "##,
+        );
+
+        fs.add_file(
+            "/config/profiles/test.yaml",
+            r##"
+            metadata:
+              name: test
+            vars:
+              bg: "#000000"
+        "##,
+        );
+
+        let load_result = orchestrator.load_profile("test").unwrap();
+        assert!(
+            load_result.is_ok(),
+            "Apps failed: {:?}",
+            load_result.failures
+        );
+
+        let env = cmd.script_env.lock().unwrap();
+        assert_eq!(
+            env.get("CUSTOM_KEY"),
+            Some(&"custom_value".to_string()),
+            "Explicit env var should be passed to the script"
+        );
+        assert_eq!(
+            env.get("THEMIS_BG"),
+            Some(&"#000000".to_string()),
+            "THEMIS_ vars should still be present alongside explicit env"
+        );
+    }
+
+    #[test]
+    fn test_command_integration_renders_and_runs() {
+        let (fs, cmd, orchestrator) = setup_with_executor();
+
+        fs.add_file(
+            "/config/themis.yaml",
+            r##"
+            enroll:
+              myapp:
+                type: command
+                commands:
+                  - "set-theme {{ mode }}"
+                  - "reload {{ mode }}"
+        "##,
+        );
+
+        fs.add_file(
+            "/config/profiles/test.yaml",
+            r##"
+            vars:
+              mode: dark
+        "##,
+        );
+
+        let load_result = orchestrator.load_profile("test").unwrap();
+        assert!(
+            load_result.is_ok(),
+            "Apps failed: {:?}",
+            load_result.failures
+        );
+
+        let executed = cmd.executed.lock().unwrap();
+        assert_eq!(
+            *executed,
+            vec!["set-theme dark".to_string(), "reload dark".to_string()],
+            "Commands should be rendered with vars and run in order"
+        );
+    }
+
+    #[test]
+    fn test_app_override_beats_global_override() {
+        let (fs, orchestrator) = setup();
+
+        fs.add_file(
+            "/config/themis.yaml",
+            r##"
+            enroll:
+              kitty:
+                type: template
+                input: /config/template.j2
+                output: /config/out.conf
+            overrides:
+              global:
+                accent: "#globalaccent"
+                size: 12
+              kitty:
+                accent: "#kittyaccent"
+        "##,
+        );
+
+        fs.add_file(
+            "/config/profiles/test.yaml",
+            r##"
+            vars:
+              accent: "#profileaccent"
+        "##,
+        );
+
+        fs.add_file("/config/template.j2", "accent={{ accent }} size={{ size }}");
+
+        let load_result = orchestrator.load_profile("test").unwrap();
+        assert!(
+            load_result.is_ok(),
+            "Apps failed: {:?}",
+            load_result.failures
+        );
+
+        let output = fs
+            .read_to_string(&PathBuf::from("/config/out.conf"))
+            .unwrap();
+        // accent: app override (#kittyaccent) wins over global (#globalaccent)
+        //         and over the profile var (#profileaccent).
+        // size:   inherited from the global override (12).
+        assert_eq!(output, "accent=#kittyaccent size=12");
     }
 
     #[test]

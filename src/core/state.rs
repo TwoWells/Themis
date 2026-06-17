@@ -209,6 +209,16 @@ impl State {
 }
 
 /// Get current timestamp in ISO 8601 format
+//
+// Mutation-testing note: cargo-mutants leaves the arithmetic below (the `/`,
+// `%`, and leap-year branches) as surviving mutants. This is deliberate and
+// left uncovered: the math is a hand-rolled, intentionally-approximate
+// epoch-to-date conversion whose only output is a display-only `last_run`
+// timestamp. A test pinning each operator would have to reimplement the same
+// arithmetic and would assert nothing about Themis's behavior. (cargo-mutants
+// 27 honors only the `#[mutants::skip]` attribute, which needs a regular
+// `mutants` crate dependency the project's `cargo-machete`/lint gates reject,
+// so this stays a documented survivor rather than a functional skip.)
 fn chrono_now() -> String {
     // Simple timestamp without external chrono dependency
     use std::time::{SystemTime, UNIX_EPOCH};

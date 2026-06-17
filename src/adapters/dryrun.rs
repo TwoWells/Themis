@@ -36,6 +36,11 @@ use tracing::info;
 /// the filesystem.
 pub struct DryRunFileSystem;
 
+// Mutation-testing note: this dry-run preview shim is left as documented
+// surviving mutants. Every method is deliberately side-effect-free (writes
+// only log via `info!` and return `Ok`), so mutants here change only what is
+// logged, not behavior an assertion can observe; real I/O is covered through
+// the RealFileSystem/RealCommandExecutor paths.
 impl FileSystem for DryRunFileSystem {
     fn read_to_string(&self, path: &Path) -> Result<String> {
         // Actually read - we need real config/template content
@@ -83,6 +88,9 @@ impl FileSystem for DryRunFileSystem {
 /// operations that would be performed.
 pub struct DryRunCommandExecutor;
 
+// Mutation-testing note: dry-run preview shim — see the DryRunFileSystem note
+// above. Both methods only log via `info!` and return `Ok(())`, so their
+// surviving mutants are documented rather than skipped or tested.
 impl CommandExecutor for DryRunCommandExecutor {
     fn run_command(&self, command: &str) -> Result<()> {
         info!("[dry-run] Would run: {}", command);

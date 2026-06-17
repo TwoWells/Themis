@@ -1,4 +1,4 @@
-.PHONY: fmt lint test test-doc deny machete check build install install-completions uninstall clean setup setup-hooks setup-tools pre-release-check bump-version next-patch next-minor next-major release release-patch release-minor release-major publish tag-current version
+.PHONY: fmt lint test test-doc deny machete mutants check build install install-completions uninstall clean setup setup-hooks setup-tools pre-release-check bump-version next-patch next-minor next-major release release-patch release-minor release-major publish tag-current version
 
 # Binary name (matches the package name in Cargo.toml)
 BIN := themis
@@ -7,7 +7,7 @@ BIN := themis
 CURRENT_VERSION := $(shell grep '^version = ' Cargo.toml | head -1 | sed 's/version = "\(.*\)"/\1/')
 
 # Required cargo tools
-CARGO_TOOLS := cargo-deny cargo-machete cargo-nextest
+CARGO_TOOLS := cargo-deny cargo-machete cargo-nextest cargo-mutants
 
 # Hard per-process address-space cap (KiB) applied to test runs, so a runaway
 # allocation aborts that single process at the limit instead of exhausting
@@ -63,6 +63,12 @@ deny:
 # 5. Unused-dependency check (cargo-machete)
 machete:
 	cargo machete --skip-target-dir
+
+# Mutation testing (cargo-mutants). Slow (minutes); run on demand, not in
+# `check`. Bare `cargo mutants` uses the default `cargo test` harness, so it also
+# exercises the doctests (nextest would skip them).
+mutants:
+	cargo mutants --timeout 60
 
 # 6. Meta-task for CI/Pre-commit
 # nextest (test) runs unit/integration tests; test-doc preserves doctest
