@@ -208,29 +208,27 @@ impl State {
     }
 }
 
-/// Get current timestamp in ISO 8601 format
-//
-// Mutation-testing note: cargo-mutants leaves the arithmetic below (the `/`,
-// `%`, and leap-year branches) as surviving mutants. This is deliberate and
-// left uncovered: the math is a hand-rolled, intentionally-approximate
-// epoch-to-date conversion whose only output is a display-only `last_run`
-// timestamp. A test pinning each operator would have to reimplement the same
-// arithmetic and would assert nothing about Themis's behavior. (cargo-mutants
-// 27 honors only the `#[mutants::skip]` attribute, which needs a regular
-// `mutants` crate dependency the project's `cargo-machete`/lint gates reject,
-// so this stays a documented survivor rather than a functional skip.)
+/// Get current timestamp in ISO 8601 format.
 fn chrono_now() -> String {
-    // Simple timestamp without external chrono dependency
+    format_iso8601(now_unix())
+}
+
+/// Read the wall clock and return seconds since the Unix epoch.
+fn now_unix() -> u64 {
     use std::time::{SystemTime, UNIX_EPOCH};
 
-    let duration = SystemTime::now()
+    SystemTime::now()
         .duration_since(UNIX_EPOCH)
-        .unwrap_or_default();
+        .unwrap_or_default()
+        .as_secs()
+}
 
-    let secs = duration.as_secs();
-
-    // Convert to rough ISO format (good enough for display)
-    // This is a simplified version - for production, use chrono crate
+/// Format seconds since the Unix epoch as an ISO 8601 UTC timestamp.
+///
+/// Pure: no clock read, no I/O. Uses a hand-rolled epoch-to-date conversion
+/// to avoid an external chrono dependency.
+fn format_iso8601(secs: u64) -> String {
+    // Convert to ISO format (good enough for display)
     let days_since_epoch = secs / 86400;
     let remaining_secs = secs % 86400;
     let hours = remaining_secs / 3600;
@@ -306,5 +304,37 @@ mod tests {
 
         let loaded = State::load_from(&state_path).unwrap();
         assert!(loaded.is_none());
+    }
+
+    // Expected strings are derived from an independent oracle (`jq`'s
+    // libc-backed `gmtime`/`strftime`), not from this implementation:
+    //   echo <secs> | jq -r '. | gmtime | strftime("%Y-%m-%dT%H:%M:%SZ")'
+    #[test]
+    fn test_format_iso8601_epoch() {
+        assert_eq!(format_iso8601(0), "1970-01-01T00:00:00Z");
+    }
+
+    #[test]
+    fn test_format_iso8601_known_non_leap_datetime() {
+        // 1700000000 -> 2023-11-14T22:13:20Z (2023 is not a leap year)
+        assert_eq!(format_iso8601(1_700_000_000), "2023-11-14T22:13:20Z");
+    }
+
+    #[test]
+    fn test_format_iso8601_leap_day() {
+        // 1582979696 -> 2020-02-29T12:34:56Z (exercises the Feb 29 leap branch)
+        assert_eq!(format_iso8601(1_582_979_696), "2020-02-29T12:34:56Z");
+    }
+
+    #[test]
+    fn test_format_iso8601_year_boundary() {
+        // 1609459200 -> 2021-01-01T00:00:00Z (first second of a new year)
+        assert_eq!(format_iso8601(1_609_459_200), "2021-01-01T00:00:00Z");
+    }
+
+    #[test]
+    fn test_format_iso8601_end_of_month() {
+        // 1675209599 -> 2023-01-31T23:59:59Z (last second before Feb rollover)
+        assert_eq!(format_iso8601(1_675_209_599), "2023-01-31T23:59:59Z");
     }
 }
