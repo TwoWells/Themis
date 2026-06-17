@@ -213,6 +213,9 @@ fn chrono_now() -> String {
     format_iso8601(now_unix())
 }
 
+// Mutation-testing note: the `SystemTime::now()` read below is the one
+// genuinely untestable line — its `-> 0` / `-> 1` mutants survive by design.
+// The formatting it feeds is covered by `format_iso8601`'s vector tests.
 /// Read the wall clock and return seconds since the Unix epoch.
 fn now_unix() -> u64 {
     use std::time::{SystemTime, UNIX_EPOCH};
@@ -239,6 +242,11 @@ fn format_iso8601(secs: u64) -> String {
     let mut year = 1970;
     let mut remaining_days = days_since_epoch;
 
+    // Mutation-testing note: the century terms of the Gregorian rule used here
+    // and below (`year % 100` / `year % 400`) only change behavior for years
+    // divisible by 100. `last_run` is always a current-era display timestamp,
+    // never a century year, so those operator mutants survive — those branches
+    // are untested by choice; the rule itself is correct.
     loop {
         let days_in_year = if year % 4 == 0 && (year % 100 != 0 || year % 400 == 0) {
             366
@@ -336,5 +344,24 @@ mod tests {
     fn test_format_iso8601_end_of_month() {
         // 1675209599 -> 2023-01-31T23:59:59Z (last second before Feb rollover)
         assert_eq!(format_iso8601(1_675_209_599), "2023-01-31T23:59:59Z");
+    }
+
+    #[test]
+    fn test_format_iso8601_first_of_month() {
+        // 1675209600 -> 2023-02-01T00:00:00Z (one second after the end-of-month
+        // case). Pins the month-loop boundary `remaining_days < days`: a `<=`
+        // regression would roll the first of the month back into "2023-01-32".
+        assert_eq!(format_iso8601(1_675_209_600), "2023-02-01T00:00:00Z");
+    }
+
+    #[test]
+    fn test_chrono_now_is_iso8601_shaped() {
+        // chrono_now reads the wall clock, so its exact value can't be pinned;
+        // assert it wires now_unix into format_iso8601 and yields a real
+        // timestamp (kills the `-> String::new()` / `-> "xyzzy"` wrapper mutants).
+        let ts = chrono_now();
+        assert_eq!(ts.len(), 20);
+        assert_eq!(ts.as_bytes()[10], b'T');
+        assert!(ts.ends_with('Z'));
     }
 }
