@@ -1,7 +1,7 @@
 # Homebrew formula for Themis — installs the prebuilt Release binary.
 #
-# This formula lives in the tap repo `TwoWells/homebrew-themis` (so users run
-# `brew install twowells/themis/themis`). It is mirrored here, under the main
+# This formula lives in the tap repo `TwoWells/homebrew-tap` (so users run
+# `brew install twowells/tap/themis`). It is mirrored here, under the main
 # repo's `packaging/homebrew/`, as the source of truth; copy it to the tap on
 # each release.
 #

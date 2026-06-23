@@ -20,14 +20,14 @@ than guessing a download URL. Those users should build from source or use anothe
 The formula is published through a tap repo, so a separate `brew tap` step is not required:
 
 ```sh
-brew install twowells/themis/themis
+brew install twowells/tap/themis
 ```
 
-That `twowells/themis/themis` triple expands to "the `themis` formula in the
-`TwoWells/homebrew-themis` tap repo". Equivalently:
+That `twowells/tap/themis` triple expands to "the `themis` formula in the `TwoWells/homebrew-tap`
+tap repo". Equivalently:
 
 ```sh
-brew tap twowells/themis
+brew tap twowells/tap
 brew install themis
 ```
 
@@ -40,8 +40,8 @@ are on your shell path.
 Homebrew fetches Release assets over unauthenticated URLs, so the tap and the main repo must both be
 public before `brew install` works.
 
-1. Create a public repo named **`homebrew-themis`** under the `TwoWells` org. The `homebrew-` prefix
-   is what lets users write `twowells/themis` instead of the full repo name.
+1. Create a public repo named **`homebrew-tap`** under the `TwoWells` org. The `homebrew-` prefix is
+   what lets users write `twowells/tap` instead of the full repo name.
 2. Copy [`themis.rb`](themis.rb) to the tap repo as `Formula/themis.rb` (the `Formula/` subdirectory
    is the convention Homebrew auto-discovers).
 3. Commit and push. The tap is now installable.
