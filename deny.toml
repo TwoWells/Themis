@@ -29,7 +29,7 @@ allow = [
 # AGPL-3.0-or-later is allowed for Themis's own crate via exceptions.
 
 exceptions = [
-    { name = "themis", allow = ["AGPL-3.0-or-later"] },
+    { name = "themis-cli", allow = ["AGPL-3.0-or-later"] },
 ]
 
 [licenses.private]

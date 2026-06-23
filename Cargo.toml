@@ -1,5 +1,5 @@
 [package]
-name = "themis"
+name = "themis-cli"
 version = "0.1.0"
 edition = "2024"
 description = "A theme orchestrator CLI for Linux"
@@ -8,6 +8,16 @@ homepage = "https://github.com/TwoWells/Themis"
 license = "AGPL-3.0-or-later"
 keywords = ["theme", "linux", "cli", "dotfiles"]
 categories = ["command-line-utilities"]
+
+# The crates.io package is `themis-cli` (the name `themis` is taken), but the
+# installed binary and the library crate keep the `themis` name.
+[lib]
+name = "themis"
+path = "src/lib.rs"
+
+[[bin]]
+name = "themis"
+path = "src/main.rs"
 
 [dependencies]
 clap = { version = "4.5", features = ["derive", "env"] }
