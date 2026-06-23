@@ -591,7 +591,7 @@ vars:
     )
     .unwrap();
 
-    let result = verify::run(&config_dir, &system_dir).unwrap();
+    let result = verify::run(&config_dir, std::slice::from_ref(&system_dir)).unwrap();
     // May have warnings about template not existing, but should not error on YAML validity
     assert!(
         result.errors.iter().all(|e| !e.contains("invalid YAML")),
@@ -619,7 +619,7 @@ fn test_verify_detects_invalid_yaml() {
     )
     .unwrap();
 
-    let result = verify::run(&config_dir, &system_dir).unwrap();
+    let result = verify::run(&config_dir, std::slice::from_ref(&system_dir)).unwrap();
     assert!(
         result.errors.iter().any(|e| e.contains("invalid YAML")),
         "Should detect invalid YAML: {:?}",
@@ -649,7 +649,7 @@ vars: {}
     )
     .unwrap();
 
-    let result = verify::run(&config_dir, &system_dir).unwrap();
+    let result = verify::run(&config_dir, std::slice::from_ref(&system_dir)).unwrap();
     assert!(
         result.errors.iter().any(|e| e.contains("doesn't exist")),
         "Should detect missing palette: {:?}",
@@ -683,7 +683,7 @@ enroll:
     )
     .unwrap();
 
-    let result = verify::run(&config_dir, &system_dir).unwrap();
+    let result = verify::run(&config_dir, std::slice::from_ref(&system_dir)).unwrap();
     assert!(
         !result.is_ok(),
         "Missing template should make verify fail: {:?}",
@@ -722,7 +722,7 @@ enroll:
     )
     .unwrap();
 
-    let result = verify::run(&config_dir, &system_dir).unwrap();
+    let result = verify::run(&config_dir, std::slice::from_ref(&system_dir)).unwrap();
     assert!(
         !result.is_ok(),
         "Missing script should make verify fail: {:?}",
@@ -767,7 +767,7 @@ enroll:
     )
     .unwrap();
 
-    let result = verify::run(&config_dir, &system_dir).unwrap();
+    let result = verify::run(&config_dir, std::slice::from_ref(&system_dir)).unwrap();
     // No errors: the template exists and the YAML is valid.
     assert!(
         result.is_ok(),
@@ -811,7 +811,7 @@ vars: {}
     )
     .unwrap();
 
-    let result = verify::run(&config_dir, &system_dir).unwrap();
+    let result = verify::run(&config_dir, std::slice::from_ref(&system_dir)).unwrap();
     assert!(
         result.is_ok(),
         "A palette present only in the user dir should resolve: {:?}",
@@ -850,7 +850,7 @@ vars: {}
     )
     .unwrap();
 
-    let result = verify::run(&config_dir, &system_dir).unwrap();
+    let result = verify::run(&config_dir, std::slice::from_ref(&system_dir)).unwrap();
     assert!(
         result.is_ok(),
         "A palette present only in the system dir should resolve: {:?}",
@@ -890,7 +890,7 @@ enroll:
     )
     .unwrap();
 
-    let result = verify::run(&config_dir, &system_dir).unwrap();
+    let result = verify::run(&config_dir, std::slice::from_ref(&system_dir)).unwrap();
     assert!(
         result.is_ok(),
         "Symlink with a missing target dir is a warning, not an error: {:?}",
@@ -925,7 +925,7 @@ fn test_verify_ignores_non_yaml_files_in_profiles() {
     )
     .unwrap();
 
-    let result = verify::run(&config_dir, &system_dir).unwrap();
+    let result = verify::run(&config_dir, std::slice::from_ref(&system_dir)).unwrap();
     assert!(
         result.is_ok(),
         "A .txt file in profiles/ must be skipped, not parsed: {:?}",
@@ -960,7 +960,7 @@ vars: {}
     )
     .unwrap();
 
-    let result = verify::run(&config_dir, &system_dir).unwrap();
+    let result = verify::run(&config_dir, std::slice::from_ref(&system_dir)).unwrap();
     assert!(
         result
             .errors
@@ -993,7 +993,7 @@ vars: {}
     )
     .unwrap();
 
-    let result = verify::run(&config_dir, &system_dir).unwrap();
+    let result = verify::run(&config_dir, std::slice::from_ref(&system_dir)).unwrap();
     assert!(
         result
             .errors
@@ -1026,7 +1026,7 @@ vars: {}
     )
     .unwrap();
 
-    let result = verify::run(&config_dir, &system_dir).unwrap();
+    let result = verify::run(&config_dir, std::slice::from_ref(&system_dir)).unwrap();
     assert!(
         result
             .errors
@@ -1055,7 +1055,7 @@ fn test_verify_detects_invalid_palette_yaml() {
     )
     .unwrap();
 
-    let result = verify::run(&config_dir, &system_dir).unwrap();
+    let result = verify::run(&config_dir, std::slice::from_ref(&system_dir)).unwrap();
     assert!(
         result
             .errors

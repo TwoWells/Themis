@@ -8,7 +8,6 @@
 use anyhow::{Context, Result};
 use clap::{CommandFactory, Parser, Subcommand};
 use clap_complete::{Shell, generate};
-use directories::ProjectDirs;
 use std::io;
 use std::path::PathBuf;
 use tracing::{Level, debug, info};
@@ -18,7 +17,8 @@ use themis::adapters::command::RealCommandExecutor;
 use themis::adapters::dryrun::{DryRunCommandExecutor, DryRunFileSystem};
 use themis::adapters::filesystem::RealFileSystem;
 use themis::adapters::template::TeraAdapter;
-use themis::core::orchestrator::{Orchestrator, SYSTEM_DATA_DIR};
+use themis::core::orchestrator::Orchestrator;
+use themis::core::paths;
 use themis::core::state::State;
 
 #[derive(Parser)]
@@ -86,14 +86,9 @@ fn main() -> Result<()> {
     let config_dir = if let Some(path) = cli.config {
         path
     } else {
-        ProjectDirs::from("com", "themis", "themis")
-            .context("Could not determine home directory")?
-            .config_dir()
-            .to_path_buf()
+        paths::config_dir().context("Could not determine config directory")?
     };
 
-    // Hack: 'directories' crate uses 'com.themis.themis' -> ~/.config/themis on Linux usually
-    // But verify.
     debug!("Config dir: {:?}", config_dir);
 
     // 3. Run Command
@@ -137,8 +132,8 @@ fn main() -> Result<()> {
             themis::commands::init::run(&config_dir)?;
         }
         Commands::Verify => {
-            let system_dir = PathBuf::from(SYSTEM_DATA_DIR);
-            let result = themis::commands::verify::run(&config_dir, &system_dir)?;
+            let system_dirs = paths::system_data_dirs();
+            let result = themis::commands::verify::run(&config_dir, &system_dirs)?;
             if !result.is_ok() {
                 std::process::exit(1);
             }

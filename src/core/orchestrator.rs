@@ -52,11 +52,9 @@ use tracing::{debug, error, info, warn};
 
 use crate::core::config::Config;
 use crate::core::integration::Integration;
+use crate::core::paths;
 use crate::core::profile::Profile;
 use crate::core::traits::{CommandExecutor, FileSystem, TemplateRenderer};
-
-/// System-wide data directory (palettes, templates)
-pub const SYSTEM_DATA_DIR: &str = "/usr/share/themis";
 
 /// Result of loading a profile, including any failures.
 ///
@@ -125,8 +123,10 @@ pub struct Orchestrator<FS, TR, CE> {
     command_executor: CE,
     /// User config directory (~/.config/themis)
     config_dir: PathBuf,
-    /// System data directory (/usr/share/themis)
-    system_dir: PathBuf,
+    /// Ordered system data directory search list (e.g. `/usr/share/themis`,
+    /// `/usr/local/share/themis`, and the Homebrew prefixes on macOS).
+    /// Searched in order, first match wins, after the user config directory.
+    system_dirs: Vec<PathBuf>,
 }
 
 impl<FS, TR, CE> Orchestrator<FS, TR, CE>
@@ -135,32 +135,33 @@ where
     TR: TemplateRenderer,
     CE: CommandExecutor,
 {
-    /// Creates an orchestrator using the default system data directory
-    /// ([`SYSTEM_DATA_DIR`]).
+    /// Creates an orchestrator using the resolved system data directory search
+    /// list (see [`crate::core::paths::system_data_dirs`]).
     pub fn new(fs: FS, template_renderer: TR, command_executor: CE, config_dir: PathBuf) -> Self {
         Self {
             fs,
             template_renderer,
             command_executor,
             config_dir,
-            system_dir: PathBuf::from(SYSTEM_DATA_DIR),
+            system_dirs: paths::system_data_dirs(),
         }
     }
 
-    /// Create orchestrator with custom system dir (useful for testing)
-    pub const fn with_system_dir(
+    /// Create an orchestrator with a custom system data directory search list
+    /// (useful for testing).
+    pub const fn with_system_dirs(
         fs: FS,
         template_renderer: TR,
         command_executor: CE,
         config_dir: PathBuf,
-        system_dir: PathBuf,
+        system_dirs: Vec<PathBuf>,
     ) -> Self {
         Self {
             fs,
             template_renderer,
             command_executor,
             config_dir,
-            system_dir,
+            system_dirs,
         }
     }
 
@@ -332,16 +333,11 @@ where
         serde_yaml::from_str(&content).with_context(|| format!("Failed to parse profile: {name}"))
     }
 
-    /// Load a palette, searching user palettes first, then system palettes.
+    /// Load a palette, searching user palettes first, then each system data
+    /// directory in order. The first match wins.
     fn load_palette_file(&self, name: &str) -> Result<Profile> {
-        let user_path = self
-            .config_dir
-            .join("palettes")
-            .join(format!("{name}.yaml"));
-        let system_path = self
-            .system_dir
-            .join("palettes")
-            .join(format!("{name}.yaml"));
+        let file = format!("{name}.yaml");
+        let user_path = self.config_dir.join("palettes").join(&file);
 
         // Try user palette first
         if self.fs.exists(&user_path) {
@@ -351,12 +347,15 @@ where
                 .with_context(|| format!("Failed to parse user palette: {name}"));
         }
 
-        // Fall back to system palette
-        if self.fs.exists(&system_path) {
-            debug!("Loading system palette: {:?}", system_path);
-            let content = self.fs.read_to_string(&system_path)?;
-            return serde_yaml::from_str(&content)
-                .with_context(|| format!("Failed to parse system palette: {name}"));
+        // Fall back to the system data directories, in order.
+        for system_dir in &self.system_dirs {
+            let system_path = system_dir.join("palettes").join(&file);
+            if self.fs.exists(&system_path) {
+                debug!("Loading system palette: {:?}", system_path);
+                let content = self.fs.read_to_string(&system_path)?;
+                return serde_yaml::from_str(&content)
+                    .with_context(|| format!("Failed to parse system palette: {name}"));
+            }
         }
 
         bail!("Palette not found: {name} (searched user and system directories)")

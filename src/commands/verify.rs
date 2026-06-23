@@ -3,7 +3,7 @@
 //! The `verify` command: validates config syntax, template paths, and palette
 //! references without applying anything.
 use anyhow::{Context, Result};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use tracing::{error, info, warn};
 
 use crate::core::config::Config;
@@ -41,8 +41,9 @@ impl VerifyResult {
     }
 }
 
-/// Verifies the configuration in `config_dir`, resolving palettes against
-/// `system_dir` as a fallback.
+/// Verifies the configuration in `config_dir`, resolving palettes against the
+/// ordered `system_dirs` search list as a fallback (searched in order, first
+/// match wins, after the user palettes).
 ///
 /// Always returns a [`VerifyResult`]; validation problems are collected into it
 /// rather than returned as errors. Check [`VerifyResult::is_ok`] for the verdict.
@@ -52,7 +53,7 @@ impl VerifyResult {
 /// Returns an error only on an unexpected I/O failure while reading the
 /// configuration tree; ordinary validation problems (missing files, invalid
 /// YAML) are recorded in the returned result instead.
-pub fn run(config_dir: &Path, system_dir: &Path) -> Result<VerifyResult> {
+pub fn run(config_dir: &Path, system_dirs: &[PathBuf]) -> Result<VerifyResult> {
     let mut result = VerifyResult::new();
 
     info!("Verifying Themis configuration...");
@@ -88,7 +89,7 @@ pub fn run(config_dir: &Path, system_dir: &Path) -> Result<VerifyResult> {
     // 3. Check profiles directory
     let profiles_dir = config_dir.join("profiles");
     if profiles_dir.is_dir() {
-        verify_profiles(&profiles_dir, config_dir, system_dir, &mut result);
+        verify_profiles(&profiles_dir, config_dir, system_dirs, &mut result);
     } else {
         result.warn("No profiles directory found");
     }
@@ -96,7 +97,7 @@ pub fn run(config_dir: &Path, system_dir: &Path) -> Result<VerifyResult> {
     // 4. Check palettes directory (user)
     let palettes_dir = config_dir.join("palettes");
     if palettes_dir.is_dir() {
-        verify_palettes(&palettes_dir, config_dir, system_dir, &mut result);
+        verify_palettes(&palettes_dir, config_dir, system_dirs, &mut result);
     }
 
     // Print summary
@@ -184,7 +185,7 @@ fn verify_integration(
 fn verify_profiles(
     profiles_dir: &Path,
     config_dir: &Path,
-    system_dir: &Path,
+    system_dirs: &[PathBuf],
     result: &mut VerifyResult,
 ) {
     let Ok(entries) = std::fs::read_dir(profiles_dir) else {
@@ -217,7 +218,7 @@ fn verify_profiles(
 
             // Check if included palette exists
             if let Some(ref palette_name) = profile.include
-                && !palette_exists(palette_name, config_dir, system_dir)
+                && !palette_exists(palette_name, config_dir, system_dirs)
             {
                 result.error(format!(
                     "Profile '{name}' includes palette '{palette_name}' which doesn't exist"
@@ -231,7 +232,7 @@ fn verify_profiles(
 fn verify_palettes(
     palettes_dir: &Path,
     config_dir: &Path,
-    system_dir: &Path,
+    system_dirs: &[PathBuf],
     result: &mut VerifyResult,
 ) {
     let Ok(entries) = std::fs::read_dir(palettes_dir) else {
@@ -264,7 +265,7 @@ fn verify_palettes(
 
             // Check if included palette exists
             if let Some(ref parent_name) = palette.include
-                && !palette_exists(parent_name, config_dir, system_dir)
+                && !palette_exists(parent_name, config_dir, system_dirs)
             {
                 result.error(format!(
                     "Palette '{name}' includes '{parent_name}' which doesn't exist"
@@ -275,8 +276,13 @@ fn verify_palettes(
     }
 }
 
-fn palette_exists(name: &str, config_dir: &Path, system_dir: &Path) -> bool {
-    let user_path = config_dir.join("palettes").join(format!("{name}.yaml"));
-    let system_path = system_dir.join("palettes").join(format!("{name}.yaml"));
-    user_path.exists() || system_path.exists()
+fn palette_exists(name: &str, config_dir: &Path, system_dirs: &[PathBuf]) -> bool {
+    let file = format!("{name}.yaml");
+    let user_path = config_dir.join("palettes").join(&file);
+    if user_path.exists() {
+        return true;
+    }
+    system_dirs
+        .iter()
+        .any(|dir| dir.join("palettes").join(&file).exists())
 }

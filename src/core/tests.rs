@@ -29,10 +29,10 @@ mod tests {
         let tera = MockTemplateRenderer::default();
         let cmd = MockCommandExecutor::default();
         let config_dir = PathBuf::from("/config");
-        let system_dir = PathBuf::from("/system");
+        let system_dirs = vec![PathBuf::from("/system")];
 
         let orchestrator =
-            Orchestrator::with_system_dir(fs.clone(), tera, cmd, config_dir, system_dir);
+            Orchestrator::with_system_dirs(fs.clone(), tera, cmd, config_dir, system_dirs);
         (fs, orchestrator)
     }
 
@@ -45,10 +45,10 @@ mod tests {
         let tera = MockTemplateRenderer::default();
         let cmd = MockCommandExecutor::default();
         let config_dir = PathBuf::from("/config");
-        let system_dir = PathBuf::from("/system");
+        let system_dirs = vec![PathBuf::from("/system")];
 
         let orchestrator =
-            Orchestrator::with_system_dir(fs.clone(), tera, cmd.clone(), config_dir, system_dir);
+            Orchestrator::with_system_dirs(fs.clone(), tera, cmd.clone(), config_dir, system_dirs);
         (fs, cmd, orchestrator)
     }
 

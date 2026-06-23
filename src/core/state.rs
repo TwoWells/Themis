@@ -31,8 +31,6 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use tracing::debug;
 
-const STATE_FILE: &str = "state.json";
-
 /// Persistent state for Themis, saved between invocations.
 ///
 /// State is stored at `$XDG_STATE_HOME/themis/state.json` (defaults to
@@ -80,19 +78,15 @@ impl State {
     /// Get the state file path following XDG Base Directory spec.
     ///
     /// Returns `$XDG_STATE_HOME/themis/state.json` if `XDG_STATE_HOME` is set,
-    /// otherwise `~/.local/state/themis/state.json`.
+    /// otherwise `~/.local/state/themis/state.json`. Resolution is delegated to
+    /// the shared [`crate::core::paths`] module so config, state, and data all
+    /// agree on a single source of truth.
     ///
     /// # Errors
     ///
     /// Returns an error if neither `XDG_STATE_HOME` nor `HOME` is set.
     pub fn state_path() -> Result<PathBuf> {
-        let state_home = if let Ok(xdg) = std::env::var("XDG_STATE_HOME") {
-            PathBuf::from(xdg)
-        } else {
-            let home = std::env::var("HOME").context("HOME environment variable not set")?;
-            PathBuf::from(home).join(".local/state")
-        };
-        Ok(state_home.join("themis").join(STATE_FILE))
+        crate::core::paths::state_file()
     }
 
     /// Load state from the default XDG location.

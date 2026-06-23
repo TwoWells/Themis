@@ -23,15 +23,15 @@ use std::process::Command;
 /// distinct makes `isolate_env` a mislocation detector: code that writes
 /// under the *wrong* base no longer silently lands in one shared directory.
 ///
-/// Themis resolves its state path from `XDG_STATE_HOME` ahead of `HOME`
-/// (see `State::state_path`) and its config dir via the `directories`
-/// crate (which honors `XDG_CONFIG_HOME`), so setting `HOME` alone does
-/// *not* isolate a subprocess — on a machine where `XDG_STATE_HOME` is
-/// exported it would read and write the user's real
-/// `~/.local/state/themis/state.json`. Pointing the XDG bases at the
-/// tempdir closes that hole. `HOME` is also pointed at `root` so any
-/// `~`-expansion (e.g. `doctor`'s `shellexpand::tilde` on app config
-/// paths) and `directories` `HOME` fallbacks resolve inside the tempdir.
+/// Themis resolves both its state path and its config dir from the XDG
+/// env vars ahead of `HOME` (see `core::paths`: `XDG_STATE_HOME` /
+/// `XDG_CONFIG_HOME`), so setting `HOME` alone does *not* isolate a
+/// subprocess — on a machine where `XDG_STATE_HOME` is exported it would
+/// read and write the user's real `~/.local/state/themis/state.json`.
+/// Pointing the XDG bases at the tempdir closes that hole. `HOME` is also
+/// pointed at `root` so any `~`-expansion (e.g. `doctor`'s
+/// `shellexpand::tilde` on app config paths) and the `$HOME`-relative XDG
+/// fallbacks resolve inside the tempdir.
 ///
 /// Clears every inherited `THEMIS_*` env var (e.g. `THEMIS_CONFIG_DIR`,
 /// the `--config` flag's env var, plus any `THEMIS_<VAR>` runtime vars)
@@ -66,7 +66,7 @@ pub fn isolate_env(cmd: &mut Command, root: impl AsRef<Path>) {
 
 /// The `XDG_CONFIG_HOME` subdir [`isolate_env`] configures under `root`.
 ///
-/// The `directories` crate resolves user config at
+/// `core::paths::config_dir()` resolves user config at
 /// `$XDG_CONFIG_HOME/themis/`, so a test writing a config the subprocess
 /// must read writes under this path.
 pub fn xdg_config_home(root: impl AsRef<Path>) -> PathBuf {
