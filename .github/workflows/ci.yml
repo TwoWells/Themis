@@ -29,9 +29,11 @@ concurrency:
 jobs:
   check:
     runs-on: homeserver-pool
-    # The ARC pod is a bare runner with no Rust. This image bakes in rustup + the
-    # pinned toolchain + cc/make/git, so the job doesn't reprovision every run.
-    container: ghcr.io/twowells/rust-ci:latest
+    # The ARC pod is a bare runner. This image (rust-web-ci = rust-ci + Node +
+    # prettier) bakes in rustup + the pinned toolchain + cc/make/git + prettier,
+    # so `make check` (which runs `prettier --check`) needs no per-job installs.
+    # The Rust-only siblings use the leaner `rust-ci`.
+    container: ghcr.io/twowells/rust-web-ci:latest
     # Inside a container job GitHub's default shell is sh (dash); force bash so
     # run steps don't silently break on a bashism.
     defaults:
