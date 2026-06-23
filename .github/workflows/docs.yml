@@ -21,8 +21,8 @@ name: Docs
 
 on:
   workflow_dispatch:
-  # push: # <-- PUBLIC-FLIP: uncomment this 2-line block to deploy on push to main
-  #   branches: [main]
+  push:
+    branches: [main]
 
 # Allow the deploy job to mint the OIDC token and publish to Pages. Scoped to
 # the workflow; the build job needs neither and runs with the defaults.
