@@ -79,6 +79,13 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      # The self-hosted runner's job PATH (~/actions-runner/.path) can drift —
+      # re-registering the runner resets it and drops ~/.cargo/bin, leaving
+      # rustup resolvable (Homebrew) but the rustc/cargo shims missing. Pin the
+      # cargo bin dir onto PATH so the toolchain resolves regardless of .path.
+      - name: Put cargo on PATH
+        run: echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+
       # rustup honors rust-toolchain.toml (channel 1.95 + rustfmt/clippy),
       # fetching the pinned toolchain on first use if not already cached.
       - name: Materialize pinned Rust toolchain
