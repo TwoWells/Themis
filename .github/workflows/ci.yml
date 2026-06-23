@@ -64,3 +64,36 @@ jobs:
       # (-D warnings), deny, machete, and the nextest suite. See the Makefile.
       - name: make check
         run: make check
+
+  # macOS check — native on the self-hosted M2 Max (`ghost`: labels
+  # macos/arm64/self-hosted). No container: macOS runners can't use Linux
+  # container images, so the host carries the tools — rustup + the pinned
+  # toolchain (honored from rust-toolchain.toml), clang/make/git (Xcode CLT),
+  # and prettier 3.8.4. The cargo tools install per-job below, mirroring the
+  # Linux job.
+  check-macos:
+    runs-on: [self-hosted, macos, arm64]
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v7
+
+      # rustup honors rust-toolchain.toml (channel 1.95 + rustfmt/clippy),
+      # fetching the pinned toolchain on first use if not already cached.
+      - name: Materialize pinned Rust toolchain
+        run: |
+          rustup show
+          rustc --version && cargo --version
+
+      - uses: Swatinem/rust-cache@v2
+
+      # Prebuilt binaries — the host runner is persistent, but installing here
+      # keeps the tool versions in lockstep with the Linux job.
+      - name: Install cargo tools
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-nextest,cargo-deny,cargo-machete
+
+      - name: make check
+        run: make check

@@ -74,13 +74,14 @@ esac
 
 TARGET="${arch_part}-${os_part}"
 
-# Today only x86_64-unknown-linux-gnu is published. Fail clearly for anything
-# else so the user gets a Release/cargo-install pointer instead of a 404.
+# Releases publish x86_64-unknown-linux-gnu and aarch64-apple-darwin. Fail
+# clearly for anything else so the user gets a cargo-install pointer instead of
+# a 404.
 case "$TARGET" in
-  x86_64-unknown-linux-gnu) : ;;
+  x86_64-unknown-linux-gnu | aarch64-apple-darwin) : ;;
   *)
     err "no prebuilt binary for target: $TARGET"
-    err "Themis currently ships x86_64-unknown-linux-gnu only."
+    err "Themis ships x86_64-unknown-linux-gnu and aarch64-apple-darwin."
     err "Build from source instead: cargo install themis-cli"
     exit 1
     ;;

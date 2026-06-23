@@ -1,7 +1,7 @@
 # Release — on a vX.Y.Z tag push:
 #   1. verify        the tag matches Cargo.toml's version
-#   2. build         the release binary on the self-hosted fleet (Linux x86_64;
-#                    macOS arm64 is added later by the macos-support workstream)
+#   2. build         the release binaries on the self-hosted fleet
+#                    (Linux x86_64 on the ARC pool + macOS arm64 on ghost)
 #   3. publish-crate publish `themis-cli` to crates.io via Trusted Publishing
 #                    (OIDC — no stored token); the installed binary stays `themis`
 #   4. release       cut a GitHub Release with the binary + SHA256 checksum
@@ -45,8 +45,8 @@ jobs:
           echo "version=$tag" >> "$GITHUB_OUTPUT"
 
   # Native release build per platform. fail-fast: false so one platform's
-  # failure does not cancel the others. Linux only for now; the macos-support
-  # workstream adds the aarch64-apple-darwin row on the ghost runner.
+  # failure does not cancel the others. Linux x86_64 on the ARC pool +
+  # aarch64-apple-darwin natively on the self-hosted ghost runner.
   build:
     needs: verify
     strategy:
@@ -56,6 +56,12 @@ jobs:
           - target: x86_64-unknown-linux-gnu
             runner: homeserver-pool
             container: ghcr.io/twowells/rust-ci:latest
+          # Native build on the self-hosted M2 Max (`ghost`). container "" → the
+          # job runs on the host, not in a container (macOS can't use Linux
+          # images). `rustup target add` and both apple targets are already present.
+          - target: aarch64-apple-darwin
+            runner: [self-hosted, macos, arm64]
+            container: ""
     runs-on: ${{ matrix.runner }}
     container: ${{ matrix.container }}
     defaults:
@@ -75,8 +81,15 @@ jobs:
           tar -C "target/${{ matrix.target }}/release" -czf \
             "dist/themis-${{ matrix.target }}.tar.gz" themis
           cd dist
-          sha256sum "themis-${{ matrix.target }}.tar.gz" \
-            > "themis-${{ matrix.target }}.tar.gz.sha256"
+          # macOS has no `sha256sum`; fall back to `shasum -a 256`. Both emit the
+          # same "<hash>  <file>" format the installer/AUR/Homebrew consume.
+          if command -v sha256sum >/dev/null 2>&1; then
+            sha256sum "themis-${{ matrix.target }}.tar.gz" \
+              > "themis-${{ matrix.target }}.tar.gz.sha256"
+          else
+            shasum -a 256 "themis-${{ matrix.target }}.tar.gz" \
+              > "themis-${{ matrix.target }}.tar.gz.sha256"
+          fi
       - uses: actions/upload-artifact@v7
         with:
           name: themis-${{ matrix.target }}
