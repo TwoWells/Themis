@@ -79,19 +79,23 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      # The self-hosted runner's job PATH (~/actions-runner/.path) can drift —
-      # re-registering the runner resets it and drops ~/.cargo/bin, leaving
-      # rustup resolvable (Homebrew) but the rustc/cargo shims missing. Pin the
-      # cargo bin dir onto PATH so the toolchain resolves regardless of .path.
-      - name: Put cargo on PATH
-        run: echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
-
-      # rustup honors rust-toolchain.toml (channel 1.95 + rustfmt/clippy),
-      # fetching the pinned toolchain on first use if not already cached.
-      - name: Materialize pinned Rust toolchain
+      # The self-hosted runner's job PATH (~/actions-runner/.path) can drift and
+      # drop the cargo shim dir, leaving `rustc`/`cargo` unresolved even though
+      # rustup still works. Derive the active toolchain's bin dir straight from
+      # rustup (robust to a missing ~/.cargo/bin) and put it on PATH. The extra
+      # echoes are temporary diagnostics for the .path drift on ghost.
+      - name: Put Rust toolchain on PATH
         run: |
+          echo "HOME=$HOME"
+          echo "PATH=$PATH"
           rustup show
-          rustc --version && cargo --version
+          echo "rustup which cargo: $(rustup which cargo || echo MISSING)"
+          ls -la "$HOME/.cargo/bin" || echo "no $HOME/.cargo/bin"
+          cargo_bin="$(dirname "$(rustup which cargo)")"
+          echo "using toolchain bin: $cargo_bin"
+          echo "$cargo_bin" >> "$GITHUB_PATH"
+      - name: Verify toolchain
+        run: rustc --version && cargo --version
 
       - uses: Swatinem/rust-cache@v2
 
