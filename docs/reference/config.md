@@ -7,14 +7,30 @@ Complete reference for Themis configuration files.
 
 ## File Locations
 
-| File            | Location                                 |
-| --------------- | ---------------------------------------- |
-| Main config     | `~/.config/themis/themis.yaml`           |
-| Profiles        | `~/.config/themis/profiles/<name>.yaml`  |
-| User palettes   | `~/.config/themis/palettes/<name>.yaml`  |
-| System palettes | `/usr/share/themis/palettes/<name>.yaml` |
-| Templates       | `~/.config/themis/templates/<name>.j2`   |
-| State           | `~/.local/state/themis/state.json`       |
+Themis resolves paths through the [XDG Base Directory] environment variables on **both Linux and
+macOS**, falling back to `$HOME`-relative defaults. The same layout applies on every platform —
+there is no `~/Library/...` special-casing on macOS.
+
+| File            | Location (default)                       | Base variable               |
+| --------------- | ---------------------------------------- | --------------------------- |
+| Main config     | `~/.config/themis/themis.yaml`           | `XDG_CONFIG_HOME`           |
+| Profiles        | `~/.config/themis/profiles/<name>.yaml`  | `XDG_CONFIG_HOME`           |
+| User palettes   | `~/.config/themis/palettes/<name>.yaml`  | `XDG_CONFIG_HOME`           |
+| Templates       | `~/.config/themis/templates/<name>.j2`   | `XDG_CONFIG_HOME`           |
+| State           | `~/.local/state/themis/state.json`       | `XDG_STATE_HOME`            |
+| System palettes | `<data-dir>/themis/palettes/<name>.yaml` | `XDG_DATA_DIRS` (see below) |
+
+Setting `XDG_CONFIG_HOME` or `XDG_STATE_HOME` redirects the corresponding paths on either platform.
+
+### System palette search path
+
+System palettes are searched, in order, across every `XDG_DATA_DIRS` entry (default
+`/usr/local/share:/usr/share`), each suffixed with `themis/palettes`. On **macOS** the Homebrew
+prefix share directories — `/opt/homebrew/share` (Apple silicon) and `/usr/local/share` (Intel) —
+are also searched, so a `brew`-installed palette set resolves. User palettes always take precedence
+over system palettes; the first match in the search list wins.
+
+[XDG Base Directory]: https://specifications.freedesktop.org/basedir-spec/latest/
 
 ## themis.yaml
 

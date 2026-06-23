@@ -1,10 +1,10 @@
 ---
 title: Themis
-description: A theme orchestrator CLI for Linux
+description: A theme orchestrator CLI for Linux and macOS
 ---
 
-**Themis** is a theme orchestrator CLI for Linux. It manages switching system themes across multiple
-applications by coordinating profiles, palettes, and integrations.
+**Themis** is a theme orchestrator CLI for Linux and macOS. It manages switching system themes
+across multiple applications by coordinating profiles, palettes, and integrations.
 
 Themis acts as a "General Contractor" for desktop theming—it doesn't generate colors, but manages
 the _who, what, and when_ of applying themes.
@@ -16,7 +16,7 @@ the _who, what, and when_ of applying themes.
 - **Multiple integration types** - Templates, symlinks, commands, and scripts
 - **Safety-first** - Generates hidden partials (`.themis.conf`) that users manually include
 - **Dry-run mode** - Preview changes without modifying files
-- **XDG compliant** - Respects `XDG_CONFIG_HOME` and `XDG_STATE_HOME`
+- **XDG compliant** - Respects `XDG_CONFIG_HOME` and `XDG_STATE_HOME` on both Linux and macOS
 
 ## Quick Start
 

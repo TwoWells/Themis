@@ -3,9 +3,20 @@ title: Getting Started
 description: Install Themis and create your first profile
 ---
 
-This guide walks you through installing Themis and creating your first profile.
+This guide walks you through installing Themis and creating your first profile. Themis runs on Linux
+and macOS.
 
 ## Installation
+
+### Homebrew (macOS / Linuxbrew)
+
+```bash
+brew install twowells/tap/themis
+```
+
+This is the recommended path on macOS. It also works under
+[Linuxbrew](https://docs.brew.sh/Homebrew-on-Linux) on Linux, though native Linux users may prefer
+the source or distro options below.
 
 ### From Source
 
@@ -127,6 +138,20 @@ themis verify
 # Check that apps have the include patterns
 themis doctor
 ```
+
+## Platform Notes
+
+Themis behaves the same on Linux and macOS. It honors the XDG Base Directory environment variables
+on both platforms, with `$HOME`-relative defaults — so a config directory ports between machines
+unchanged. See the [Configuration Reference](./reference/config.md) for the exact resolved paths and
+how to redirect them.
+
+On macOS there is no `~/Library/Application Support` special-casing: config lives under `~/.config`
+and state under `~/.local/state` unless you point `XDG_CONFIG_HOME` / `XDG_STATE_HOME` elsewhere.
+
+The apps shown throughout these docs (waybar, hyprland, kitty, …) are Linux desktop applications. On
+macOS, Themis themes whatever has a config file it can render or symlink into — the integration
+types are the same; only the set of apps you enroll differs.
 
 ## Next Steps
 

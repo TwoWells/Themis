@@ -1,0 +1,91 @@
+# Docs — build the Starlight site (`website/`) and deploy it to GitHub Pages.
+#
+# Two jobs:
+#   build   builds `website/dist/` and uploads it as a Pages artifact. Runs on
+#           the self-hosted ARC pool `homeserver-pool` using the `rust-web-ci`
+#           image (it bakes in Node + npm). This job never touches the Pages
+#           deployment, so it cannot fail the deploy even while Pages is off.
+#   deploy  publishes the uploaded artifact with the official `actions/deploy-pages`
+#           flow. This needs a GitHub-hosted runner and the `github-pages`
+#           environment, neither of which exists on the self-hosted pool.
+#
+# --- TRIGGER: kept manual while the repo is PRIVATE -------------------------
+# The repo is private and GitHub Pages is not enabled yet, so an automatic
+# push-to-main deploy would run-and-fail and turn `main` red. Until the repo is
+# flipped public AND Pages is enabled (Settings → Pages → Source: GitHub
+# Actions), this workflow runs ONLY via manual `workflow_dispatch`.
+#
+# TO ACTIVATE AT THE PUBLIC FLIP: uncomment the single `push` block below.
+# (One-line change — that's all that's needed once Pages is on.)
+name: Docs
+
+on:
+  workflow_dispatch:
+  # push: # <-- PUBLIC-FLIP: uncomment this 2-line block to deploy on push to main
+  #   branches: [main]
+
+# Allow the deploy job to mint the OIDC token and publish to Pages. Scoped to
+# the workflow; the build job needs neither and runs with the defaults.
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Never run two Pages deployments at once; let an in-flight deploy finish rather
+# than cancelling it (a half-applied deploy is worse than a slightly stale one).
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: homeserver-pool
+    # rust-web-ci = rust-ci + Node + prettier. We only need Node + npm here.
+    container: ghcr.io/twowells/rust-web-ci:latest
+    # Inside a container job GitHub's default shell is sh (dash); force bash so
+    # run steps don't silently break on a bashism. Matches ci.yml / release.yml.
+    defaults:
+      run:
+        shell: bash
+    steps:
+      # The Starlight content (`website/src/content/docs`) is a symlink into the
+      # repo's `docs/` tree. actions/checkout preserves symlinks, and `docs/` is
+      # checked out in the same tree, so Astro resolves it during the build.
+      - uses: actions/checkout@v7
+
+      - name: Install dependencies (npm ci)
+        working-directory: website
+        run: npm ci
+
+      - name: Build the site (astro build → website/dist)
+        working-directory: website
+        run: npm run build
+
+      # Pagefind (Starlight's bundled search) emits its index under
+      # dist/pagefind/ at build time. Fail loudly if it is missing so a broken
+      # search never reaches the deployed site.
+      - name: Verify build output (index + Pagefind search assets)
+        working-directory: website
+        run: |
+          test -f dist/index.html
+          test -f dist/pagefind/pagefind.js
+          echo "Build output and Pagefind search assets present."
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: website/dist
+
+  deploy:
+    needs: build
+    # GitHub-hosted runner: actions/deploy-pages targets the Pages service and
+    # needs the `github-pages` environment, which the self-hosted pool can't
+    # provide. Free for public repos.
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

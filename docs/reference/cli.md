@@ -158,11 +158,17 @@ themis completions fish | source
 
 ## Environment Variables
 
-| Variable            | Description                                    |
-| ------------------- | ---------------------------------------------- |
-| `THEMIS_CONFIG_DIR` | Override config directory (same as `-c`)       |
-| `XDG_CONFIG_HOME`   | Base for config dir (default: `~/.config`)     |
-| `XDG_STATE_HOME`    | Base for state dir (default: `~/.local/state`) |
+These are honored identically on Linux and macOS.
+
+| Variable            | Description                                                          |
+| ------------------- | -------------------------------------------------------------------- |
+| `THEMIS_CONFIG_DIR` | Override config directory (same as `-c`)                             |
+| `XDG_CONFIG_HOME`   | Base for config dir (default: `~/.config`)                           |
+| `XDG_STATE_HOME`    | Base for state dir (default: `~/.local/state`)                       |
+| `XDG_DATA_DIRS`     | System palette search roots (default: `/usr/local/share:/usr/share`) |
+
+See the [Configuration Reference](./config.md) for the full per-OS path layout, including the
+Homebrew prefixes searched for system palettes on macOS.
 
 ## Examples
 
