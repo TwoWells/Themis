@@ -79,20 +79,16 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      # The self-hosted runner's job PATH (~/actions-runner/.path) can drift and
-      # drop the cargo shim dir, leaving `rustc`/`cargo` unresolved even though
-      # rustup still works. Derive the active toolchain's bin dir straight from
-      # rustup (robust to a missing ~/.cargo/bin) and put it on PATH. The extra
-      # echoes are temporary diagnostics for the .path drift on ghost.
+      # `ghost` exposes the toolchain via rustup shims in ~/.cargo/bin, which
+      # proved unreliable here: `rustc` exited 127 (shell couldn't resolve it)
+      # while `rustup` itself worked. Derive the active toolchain's real bin dir
+      # from rustup and put it on PATH — independent of the shim layer. `rustup
+      # show` also materializes the pinned toolchain (rust-toolchain.toml) if the
+      # runner hasn't cached it yet.
       - name: Put Rust toolchain on PATH
         run: |
-          echo "HOME=$HOME"
-          echo "PATH=$PATH"
           rustup show
-          echo "rustup which cargo: $(rustup which cargo || echo MISSING)"
-          ls -la "$HOME/.cargo/bin" || echo "no $HOME/.cargo/bin"
           cargo_bin="$(dirname "$(rustup which cargo)")"
-          echo "using toolchain bin: $cargo_bin"
           echo "$cargo_bin" >> "$GITHUB_PATH"
       - name: Verify toolchain
         run: rustc --version && cargo --version

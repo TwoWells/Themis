@@ -69,12 +69,13 @@ jobs:
         shell: bash
     steps:
       - uses: actions/checkout@v7
-      # The self-hosted macOS runner's job PATH can drop ~/.cargo/bin on a
-      # runner re-register; pin it so rustc/cargo resolve. No-op on Linux (the
-      # container has the toolchain on PATH already), so gate it to macOS.
-      - name: Put cargo on PATH (macOS native runner)
+      # `ghost`'s rustup shims (~/.cargo/bin) proved unreliable (rustc unresolved
+      # while rustup worked); derive the toolchain's real bin dir from rustup and
+      # put it on PATH. No-op on Linux (the container has cargo on PATH), so gate
+      # it to macOS.
+      - name: Put Rust toolchain on PATH (macOS native runner)
         if: runner.os == 'macOS'
-        run: echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+        run: echo "$(dirname "$(rustup which cargo)")" >> "$GITHUB_PATH"
       - name: Materialize Rust toolchain
         run: |
           rustup show
