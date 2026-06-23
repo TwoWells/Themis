@@ -126,17 +126,19 @@ themis doctor
 
 ## Configuration
 
-Configuration follows the XDG directory conventions on both Linux and macOS:
+Themis resolves every path from the
+[XDG Base Directory](https://specifications.freedesktop.org/basedir-spec/latest/) variables on Linux
+and macOS alike, with `$HOME`-relative fallbacks — no platform-native locations, so a config tree
+ports between machines unchanged:
 
-- Config: `~/.config/themis/themis.yaml`
-- Profiles: `~/.config/themis/profiles/<name>.yaml`
-- Palettes: `~/.config/themis/palettes/<name>.yaml`
-- Templates: `~/.config/themis/templates/<app>.j2`
-- State: `~/.local/state/themis/state.json`
+- **Config** — `$XDG_CONFIG_HOME/themis/` (default `~/.config/themis/`): holds `themis.yaml`,
+  `profiles/<name>.yaml`, your `palettes/<name>.yaml`, and `templates/<app>.j2`
+- **State** — `$XDG_STATE_HOME/themis/state.json` (default `~/.local/state/themis/state.json`)
+- **System palettes** — each entry of `$XDG_DATA_DIRS` (default `/usr/local/share:/usr/share`),
+  searched as `<dir>/themis/palettes/<name>.yaml`; on macOS the Homebrew prefixes
+  (`/opt/homebrew/share`, `/usr/local/share`) are searched too
 
-System palettes are installed to `/usr/share/themis/palettes/`. `XDG_CONFIG_HOME` and
-`XDG_STATE_HOME` are honored on both platforms; see the
-[documentation](https://twowells.github.io/Themis/) for the exact per-OS defaults.
+See the [documentation](https://twowells.github.io/Themis/) for the full resolution rules.
 
 ### themis.yaml
 
