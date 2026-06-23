@@ -23,7 +23,7 @@ class Themis < Formula
   on_macos do
     on_arm do
       url "https://github.com/TwoWells/Themis/releases/download/v0.1.0/themis-aarch64-apple-darwin.tar.gz"
-      sha256 "REPLACE_WITH_AARCH64_APPLE_DARWIN_SHA256"
+      sha256 "623693a8ab3b89acaa91713782cac160834906c5d1d2a12aa38c77121ecd9558"
     end
     on_intel do
       odie "Themis has no prebuilt Intel macOS binary; build from source or use Apple Silicon."
@@ -33,7 +33,7 @@ class Themis < Formula
   on_linux do
     on_intel do
       url "https://github.com/TwoWells/Themis/releases/download/v0.1.0/themis-x86_64-unknown-linux-gnu.tar.gz"
-      sha256 "REPLACE_WITH_X86_64_UNKNOWN_LINUX_GNU_SHA256"
+      sha256 "3ce410c9ecb6381454054ecdb130b985c1f2423194f1ba621fafa4be92bae194"
     end
     on_arm do
       odie "Themis has no prebuilt ARM Linux binary; build from source or use x86_64."

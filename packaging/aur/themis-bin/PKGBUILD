@@ -19,7 +19,7 @@ source=("themis-$pkgver-$_target.tar.gz::https://github.com/TwoWells/Themis/rele
 # On each release the maintainer pins the real checksums here (or fetches the
 # published themis-$_target.tar.gz.sha256 alongside the artifact). The LICENSE
 # text is stable across releases.
-sha256sums=('SKIP'
+sha256sums=('3ce410c9ecb6381454054ecdb130b985c1f2423194f1ba621fafa4be92bae194'
             'SKIP')
 
 package() {
