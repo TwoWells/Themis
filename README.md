@@ -1,10 +1,21 @@
 # Themis
 
-**Themis** is a theme orchestrator CLI for Linux. It manages switching system themes across multiple
-applications by coordinating profiles, palettes, and integrations.
+[![CI](https://github.com/TwoWells/Themis/actions/workflows/ci.yml/badge.svg)](https://github.com/TwoWells/Themis/actions/workflows/ci.yml)
+[![crates.io](https://img.shields.io/crates/v/themis-cli.svg)](https://crates.io/crates/themis-cli)
+[![docs](https://img.shields.io/badge/docs-website-blue)](https://twowells.github.io/Themis/)
+[![license](https://img.shields.io/badge/license-AGPL--3.0--or--later-blue.svg)](LICENSE)
 
-Themis acts as a "General Contractor" for desktop theming—it doesn't generate colors, but manages
-the _who, what, and when_ of applying themes.
+**Themis** is a theme orchestrator CLI for Linux and macOS. It switches your whole desktop between
+themes (Light/Dark and beyond) by coordinating profiles, palettes, and per-application integrations
+from a single command.
+
+Themis acts as a "General Contractor" for theming—it doesn't generate colors, it manages the _who,
+what, and when_ of applying them. You bring the palettes and templates; Themis renders them, links
+them, and reloads the right apps, atomically and without clobbering your hand-written config.
+
+```bash
+themis load dark   # one command re-themes every enrolled app
+```
 
 ## Features
 
@@ -13,17 +24,66 @@ the _who, what, and when_ of applying themes.
 - **Multiple integration types:** Templates, symlinks, commands, and scripts
 - **Safety-first:** Generates hidden partials (`.themis.conf`) that users manually include
 - **Dry-run mode:** Preview changes without modifying files
-- **XDG compliant:** Respects `XDG_CONFIG_HOME` and `XDG_STATE_HOME`
+- **Cross-platform:** Runs on Linux and macOS, honoring `XDG_CONFIG_HOME`/`XDG_STATE_HOME` on both
 
-## Installation
+## Install
+
+### Quick install (Linux & macOS)
+
+Download the prebuilt `themis` binary and put it on your `PATH`:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/TwoWells/Themis/main/install.sh | sh
+```
+
+The installer detects your OS/arch, verifies the release checksum, and installs to `~/.local/bin`
+(override with `THEMIS_INSTALL_DIR`). Ensure that directory is on your `PATH`.
+
+### With Cargo
+
+If you have a Rust toolchain, the crate is published as `themis-cli` (the binary stays `themis`):
+
+```bash
+# No-compile: fetches the prebuilt release binary
+cargo binstall themis-cli
+
+# From source
+cargo install themis-cli
+```
+
+### Arch Linux (AUR)
+
+Build from source with [`themis`](https://aur.archlinux.org/packages/themis), or grab the prebuilt
+binary with [`themis-bin`](https://aur.archlinux.org/packages/themis-bin):
+
+```bash
+# build from source
+yay -S themis
+
+# prebuilt binary
+yay -S themis-bin
+```
+
+### macOS
+
+The quick installer and `cargo` paths above both work on macOS. A Homebrew tap is on the way:
+
+```bash
+# coming soon
+brew install twowells/tap/themis
+```
+
+> Note: Themis themes whatever has config files. Its example enrollments (waybar, hyprland, …) are
+> Linux desktop apps; on macOS you point it at the configs you actually run.
 
 ### From source
 
-Requires [Rust](https://rustup.rs/) 1.70+.
+Requires [Rust](https://rustup.rs/) (see [`rust-toolchain.toml`](rust-toolchain.toml) for the pinned
+version).
 
 ```bash
 git clone https://github.com/TwoWells/Themis.git
-cd themis
+cd Themis
 
 # User install (no sudo, installs to ~/.local)
 make install PREFIX=~/.local
@@ -32,9 +92,8 @@ make install PREFIX=~/.local
 sudo make install
 ```
 
-This installs the binary and shell completions for bash, zsh, and fish.
-
-For user install, ensure `~/.local/bin` is in your `PATH`.
+This installs the binary and shell completions for bash, zsh, and fish. For a user install, ensure
+`~/.local/bin` is on your `PATH`.
 
 To uninstall:
 
@@ -45,14 +104,6 @@ make uninstall PREFIX=~/.local
 # System uninstall
 sudo make uninstall
 ```
-
-### Arch Linux (AUR)
-
-Coming soon.
-
-### Nix
-
-Coming soon.
 
 ## Quick Start
 
@@ -75,7 +126,7 @@ themis doctor
 
 ## Configuration
 
-Configuration follows XDG directories:
+Configuration follows the XDG directory conventions on both Linux and macOS:
 
 - Config: `~/.config/themis/themis.yaml`
 - Profiles: `~/.config/themis/profiles/<name>.yaml`
@@ -83,7 +134,9 @@ Configuration follows XDG directories:
 - Templates: `~/.config/themis/templates/<app>.j2`
 - State: `~/.local/state/themis/state.json`
 
-System palettes are installed to `/usr/share/themis/palettes/`.
+System palettes are installed to `/usr/share/themis/palettes/`. `XDG_CONFIG_HOME` and
+`XDG_STATE_HOME` are honored on both platforms; see the
+[documentation](https://twowells.github.io/Themis/) for the exact per-OS defaults.
 
 ### themis.yaml
 
@@ -228,6 +281,11 @@ Example for kitty (`~/.config/kitty/kitty.conf`):
 ```
 include .themis.conf
 ```
+
+## Documentation
+
+Full docs—getting started, profile and integration guides, and the CLI/configuration reference—live
+at [twowells.github.io/Themis](https://twowells.github.io/Themis/).
 
 ## License
 
