@@ -146,8 +146,8 @@ clean:
 	cargo clean
 
 # --- Release ---
-# Note: Cargo.lock is gitignored in Themis, so the recipes below stage and roll
-# back only Cargo.toml (touching the untracked lockfile with git would error).
+# Note: Cargo.lock is committed, so a version bump rewrites both Cargo.toml and
+# Cargo.lock; the recipes below stage and roll back both together.
 
 # Abort unless the working tree is clean, on main, and in sync with origin/main.
 pre-release-check:
@@ -188,8 +188,8 @@ next-major:
 	$(eval V := $(shell echo $(CURRENT_VERSION) | awk -F. '{print $$1+1".0.0"}'))
 
 # Cut a release locally: pre-flight checks -> bump -> check (rollback on fail) ->
-# commit -> annotated tag. Cargo.lock is gitignored, so only Cargo.toml is
-# rolled back / staged.
+# commit -> annotated tag. The version bump rewrites Cargo.lock too, so both
+# Cargo.toml and Cargo.lock are staged / rolled back together.
 release: pre-release-check
 	@if [ -z "$(V)" ]; then \
 		echo "Error: Version not specified. Use 'make release V=x.y.z' or 'make release-patch'"; \
@@ -198,13 +198,13 @@ release: pre-release-check
 	@$(MAKE) bump-version V=$(V)
 	@if ! $(MAKE) check; then \
 		echo "Checks failed. Rolling back version bump..."; \
-		git checkout HEAD -- Cargo.toml; \
+		git checkout HEAD -- Cargo.toml Cargo.lock; \
 		exit 1; \
 	fi
-	@git add Cargo.toml
+	@git add Cargo.toml Cargo.lock
 	@if ! git commit -m "chore: Bump version to $(V)"; then \
 		echo "Commit failed. Rolling back version bump..."; \
-		git checkout HEAD -- Cargo.toml; \
+		git checkout HEAD -- Cargo.toml Cargo.lock; \
 		exit 1; \
 	fi
 	@git tag -a "v$(V)" -m "Release v$(V)"

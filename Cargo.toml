@@ -2,12 +2,24 @@
 name = "themis-cli"
 version = "0.1.0"
 edition = "2024"
-description = "A theme orchestrator CLI for Linux"
+description = "A theme orchestrator CLI for Linux and macOS"
 repository = "https://github.com/TwoWells/Themis"
 homepage = "https://github.com/TwoWells/Themis"
 license = "AGPL-3.0-or-later"
-keywords = ["theme", "linux", "cli", "dotfiles"]
+keywords = ["theme", "linux", "macos", "cli", "dotfiles"]
 categories = ["command-line-utilities"]
+
+# Keep the published crate lean: ship the code, manifest, lock, README, and
+# LICENSE — not the docs site, packaging recipes, CI, or installer (none are
+# build inputs; verified by `cargo publish --dry-run`).
+exclude = [
+  "/website",
+  "/docs",
+  "/packaging",
+  "/.github",
+  "/.githooks",
+  "/install.sh",
+]
 
 # The crates.io package is `themis-cli` (the name `themis` is taken), but the
 # installed binary and the library crate keep the `themis` name.
