@@ -1,6 +1,7 @@
 # Rust / Cargo
 /target/
-Cargo.lock
+# Cargo.lock IS committed: themis-cli is a binary crate, so the lock is checked
+# in for reproducible release/CI builds and `--locked`/`--frozen` consumers.
 
 # cargo-mutants output (mutants.out/ and the mutants.out.old/ backup)
 mutants.out*/

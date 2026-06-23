@@ -17,14 +17,19 @@ sha256sums=('SKIP')
 # The GitHub archive extracts to Themis-$pkgver/ (the repo name is "Themis").
 _srcdir="Themis-$pkgver"
 
+prepare() {
+    cd "$_srcdir"
+    # Cargo.lock is committed upstream and ships in the GitHub source archive, so
+    # fetch the exact locked dependency versions (offline-friendly, reproducible).
+    cargo fetch --locked --target "$(rustc -vV | sed -n 's/host: //p')"
+}
+
 build() {
     cd "$_srcdir"
     export CARGO_TARGET_DIR=target
     # The crate manifest is named `themis-cli`; the produced binary is `themis`.
-    # Cargo.lock is not committed upstream, so this resolves deps fresh (no
-    # --frozen/--locked). If Cargo.lock is committed later, switch to
-    # `cargo fetch --locked` in prepare() + `cargo build --frozen` here.
-    cargo build --release
+    # --frozen builds against the committed Cargo.lock with no network access.
+    cargo build --frozen --release
 }
 
 package() {
