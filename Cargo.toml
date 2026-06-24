@@ -15,7 +15,6 @@ categories = ["command-line-utilities"]
 exclude = [
   "/website",
   "/docs",
-  "/packaging",
   "/.github",
   "/.githooks",
   "/install.sh",
