@@ -14,6 +14,20 @@
 #     add publisher (repo TwoWells/Themis, workflow release.yml, environment
 #     `release`).
 #   - GitHub: Settings → Environments → create `release`.
+#
+# Release contract — the downstream packaging (pkgbuilds, homebrew-tap) parses
+# releases by these conventions; breaking any SILENTLY breaks the AUR/Homebrew
+# bump on the next release (see ThemisInternal decision 002):
+#   1. Tag named vX.Y.Z (the verify job enforces tag == Cargo.toml version).
+#   2. Assets `themis-<rust-triple>.tar.gz` + a `.tar.gz.sha256` sidecar each,
+#      binary at the archive root. The sidecars are REQUIRED — Homebrew reads
+#      checksums from them. Keep this naming if you add a target.
+#   3. Cargo.lock committed in the tagged tree (the AUR source build is --locked).
+#   4. LICENSE present in the tagged tree (themis-bin fetches it from the tag).
+#   5. The `themis completions {bash,zsh,fish}` subcommand (every package builds
+#      completions by running the binary; guarded by tests/integration_test.rs).
+# `make release` / `make tag-current` run `make release-contract`, which checks the
+# locally-verifiable parts (Cargo.lock tracked, LICENSE present) before tagging.
 name: Release
 
 on:

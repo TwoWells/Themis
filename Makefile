@@ -1,4 +1,4 @@
-.PHONY: fmt lint test test-doc deny machete mutants check build install install-completions uninstall clean setup setup-hooks setup-tools pre-release-check bump-version next-patch next-minor next-major release release-patch release-minor release-major publish tag-current version
+.PHONY: fmt lint test test-doc deny machete mutants check build install install-completions uninstall clean setup setup-hooks setup-tools release-contract pre-release-check bump-version next-patch next-minor next-major release release-patch release-minor release-major publish tag-current version
 
 # Binary name (matches the package name in Cargo.toml)
 BIN := themis
@@ -149,8 +149,20 @@ clean:
 # Note: Cargo.lock is committed, so a version bump rewrites both Cargo.toml and
 # Cargo.lock; the recipes below stage and roll back both together.
 
+# Locally-checkable parts of the release contract (full list in the header of
+# .github/workflows/release.yml): Cargo.lock must be committed (the AUR source
+# build is --locked/--frozen) and LICENSE must be in the tree (themis-bin fetches
+# it from the tag). The `themis completions` subcommand is covered by the
+# integration tests; asset naming + .sha256 sidecars are produced by release.yml.
+release-contract:
+	@git ls-files --error-unmatch Cargo.lock >/dev/null 2>&1 || \
+		{ echo "Error: Cargo.lock is not tracked; the release contract requires it committed."; exit 1; }
+	@test -f LICENSE || \
+		{ echo "Error: LICENSE is missing; the release contract requires it in the tree."; exit 1; }
+	@echo "Release contract OK: Cargo.lock tracked, LICENSE present."
+
 # Abort unless the working tree is clean, on main, and in sync with origin/main.
-pre-release-check:
+pre-release-check: release-contract
 	@echo "Checking release prerequisites..."
 	@if [ -n "$$(git status --porcelain)" ]; then \
 		echo "Error: Working tree is not clean. Commit or stash changes first."; \
@@ -227,7 +239,7 @@ publish:
 	@echo ""
 	@echo "Release v$(CURRENT_VERSION) pushed."
 
-tag-current:
+tag-current: release-contract
 	@if git rev-parse "v$(CURRENT_VERSION)" >/dev/null 2>&1; then \
 		echo "Tag v$(CURRENT_VERSION) already exists."; \
 		exit 1; \
