@@ -1,7 +1,8 @@
 # Release — on a vX.Y.Z tag push:
 #   1. verify        the tag matches Cargo.toml's version
-#   2. build         the release binaries on the self-hosted fleet
-#                    (Linux x86_64 on the ARC pool + macOS arm64 on ghost)
+#   2. build         the release binaries on GitHub-hosted runners
+#                    (Linux x86_64 in a container + macOS arm64 on macos-14),
+#                    each attested with build provenance at release time
 #   3. publish-crate publish `themis-cli` to crates.io via Trusted Publishing
 #                    (OIDC — no stored token); the installed binary stays `themis`
 #   4. release       cut a GitHub Release with the binary + SHA256 checksum
@@ -36,12 +37,13 @@ on:
 
 permissions:
   contents: write # create the GitHub Release
-  id-token: write # OIDC token for crates.io Trusted Publishing
+  id-token: write # OIDC token for crates.io Trusted Publishing + attestation
+  attestations: write # mint build-provenance attestations for the release assets
 
 jobs:
   # Guard: a pushed tag whose version disagrees with Cargo.toml is a mistake.
   verify:
-    runs-on: homeserver-pool
+    runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.v.outputs.version }}
     steps:
@@ -59,8 +61,8 @@ jobs:
           echo "version=$tag" >> "$GITHUB_OUTPUT"
 
   # Native release build per platform. fail-fast: false so one platform's
-  # failure does not cancel the others. Linux x86_64 on the ARC pool +
-  # aarch64-apple-darwin natively on the self-hosted ghost runner.
+  # failure does not cancel the others. Linux x86_64 in a container on a hosted
+  # runner + aarch64-apple-darwin natively on a hosted Apple Silicon runner.
   build:
     needs: verify
     strategy:
@@ -68,13 +70,14 @@ jobs:
       matrix:
         include:
           - target: x86_64-unknown-linux-gnu
-            runner: homeserver-pool
+            runner: ubuntu-latest
             container: ghcr.io/twowells/rust-ci:latest
-          # Native build on the self-hosted M2 Max (`ghost`). container "" → the
-          # job runs on the host, not in a container (macOS can't use Linux
-          # images). `rustup target add` and both apple targets are already present.
+          # Native build on a GitHub-hosted Apple Silicon runner. container "" →
+          # the job runs on the host, not in a container (macOS can't use Linux
+          # images). rustup + cargo are already on PATH; `rustup target add`
+          # below ensures the apple target is installed.
           - target: aarch64-apple-darwin
-            runner: [self-hosted, macos, arm64]
+            runner: macos-14
             container: ""
     runs-on: ${{ matrix.runner }}
     container: ${{ matrix.container }}
@@ -83,13 +86,9 @@ jobs:
         shell: bash
     steps:
       - uses: actions/checkout@v7
-      # `ghost`'s rustup shims (~/.cargo/bin) proved unreliable (rustc unresolved
-      # while rustup worked); derive the toolchain's real bin dir from rustup and
-      # put it on PATH. No-op on Linux (the container has cargo on PATH), so gate
-      # it to macOS.
-      - name: Put Rust toolchain on PATH (macOS native runner)
-        if: runner.os == 'macOS'
-        run: echo "$(dirname "$(rustup which cargo)")" >> "$GITHUB_PATH"
+      # rustup reads rust-toolchain.toml; `rustup target add` ensures the matrix
+      # target is installed. Works as-is on both the Linux container (cargo on
+      # PATH) and the hosted macOS runner (rustup + cargo preinstalled on PATH).
       - name: Materialize Rust toolchain
         run: |
           rustup show
@@ -120,7 +119,7 @@ jobs:
   # re-run (or a re-pushed tag) is a harmless no-op rather than a hard failure.
   publish-crate:
     needs: verify
-    runs-on: homeserver-pool
+    runs-on: ubuntu-latest
     container: ghcr.io/twowells/rust-ci:latest
     defaults:
       run:
@@ -156,12 +155,18 @@ jobs:
 
   release:
     needs: [verify, build, publish-crate]
-    runs-on: homeserver-pool
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v8
         with:
           path: dist
           merge-multiple: true
+      # Mint a build-provenance attestation for the platform tarballs (the glob
+      # deliberately skips the .tar.gz.sha256 sidecars — no value attesting
+      # checksum files). Consumers can verify with `gh attestation verify`.
+      - uses: actions/attest-build-provenance@v4
+        with:
+          subject-path: dist/themis-*.tar.gz
       - uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ github.ref_name }}
