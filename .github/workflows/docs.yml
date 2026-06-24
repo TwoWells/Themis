@@ -3,20 +3,17 @@
 # Two jobs:
 #   build   builds `website/dist/` and uploads it as a Pages artifact. Runs on
 #           a GitHub-hosted runner inside the `rust-web-ci` image (it bakes in
-#           Node + npm). This job never touches the Pages deployment, so it
-#           cannot fail the deploy even while Pages is off.
+#           Node + npm). This job never touches the Pages deployment, so a
+#           build failure here can't half-apply a deploy.
 #   deploy  publishes the uploaded artifact with the official `actions/deploy-pages`
 #           flow. This needs the `github-pages` environment (set up under
 #           Settings → Environments).
 #
-# --- TRIGGER: kept manual while the repo is PRIVATE -------------------------
-# The repo is private and GitHub Pages is not enabled yet, so an automatic
-# push-to-main deploy would run-and-fail and turn `main` red. Until the repo is
-# flipped public AND Pages is enabled (Settings → Pages → Source: GitHub
-# Actions), this workflow runs ONLY via manual `workflow_dispatch`.
-#
-# TO ACTIVATE AT THE PUBLIC FLIP: uncomment the single `push` block below.
-# (One-line change — that's all that's needed once Pages is on.)
+# --- TRIGGER ----------------------------------------------------------------
+# The repo is public and GitHub Pages is enabled (Settings → Pages → Source:
+# GitHub Actions, deploying from `main`), so this auto-deploys on every push to
+# `main`; `workflow_dispatch` is also kept for manual re-runs. The published
+# site is live at https://twowells.github.io/Themis/.
 name: Docs
 
 on:
