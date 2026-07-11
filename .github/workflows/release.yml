@@ -6,6 +6,8 @@
 #   3. publish-crate publish `themis-cli` to crates.io via Trusted Publishing
 #                    (OIDC — no stored token); the installed binary stays `themis`
 #   4. release       cut a GitHub Release with the binary + SHA256 checksum
+#   5. notify        dispatch the distribution repos so packaging starts
+#                    immediately
 #
 # Triggered ONLY by tag pushes (which require write access), so a fork PR can
 # never trigger it — the publish credential is never exposed to untrusted code.
@@ -173,3 +175,27 @@ jobs:
           name: v${{ needs.verify.outputs.version }}
           generate_release_notes: true
           files: dist/*
+
+  # Push, don't poll: nudge the distribution repos so packaging starts now
+  # instead of on their next scheduled poll. Each dispatched workflow is an
+  # idempotent no-op when nothing newer has shipped, and each keeps its
+  # schedule as a fallback — so a missing or expired DIST_DISPATCH_TOKEN
+  # (fine-grained PATs cap at 1 year) degrades to polling, never a red
+  # release. The token is a TwoWells org secret (fine-grained PAT,
+  # Actions: write on exactly these three repos), shared with each upstream
+  # that ships releases.
+  notify-distribution:
+    needs: release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Dispatch distribution watchers
+        env:
+          GH_TOKEN: ${{ secrets.DIST_DISPATCH_TOKEN }}
+        run: |
+          if [ -z "$GH_TOKEN" ]; then
+            echo "DIST_DISPATCH_TOKEN unset — falling back to scheduled polls."
+            exit 0
+          fi
+          gh workflow run watch.yml --repo TwoWells/pkgbuilds
+          gh workflow run bump.yml --repo TwoWells/homebrew-tap
+          gh workflow run bump.yml --repo TwoWells/scoop-bucket
