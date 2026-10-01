@@ -5,7 +5,8 @@
 #                    each attested with build provenance at release time
 #   3. publish-crate publish `themis-cli` to crates.io via Trusted Publishing
 #                    (OIDC — no stored token); the installed binary stays `themis`
-#   4. release       cut a GitHub Release with the binary + SHA256 checksum
+#   4. release       cut a GitHub Release with the binaries + a source tarball,
+#                    each with a SHA256 sidecar
 #   5. notify        dispatch the distribution repos so packaging starts
 #                    immediately
 #
@@ -25,9 +26,13 @@
 #   2. Assets `themis-<rust-triple>.tar.gz` + a `.tar.gz.sha256` sidecar each,
 #      binary at the archive root. The sidecars are REQUIRED — Homebrew reads
 #      checksums from them. Keep this naming if you add a target.
-#   3. Cargo.lock committed in the tagged tree (the AUR source build is --locked).
-#   4. LICENSE present in the tagged tree (themis-bin fetches it from the tag).
-#   5. The `themis completions {bash,zsh,fish}` subcommand (every package builds
+#   3. Asset `themis-src-X.Y.Z.tar.gz` + its `.tar.gz.sha256` sidecar — the
+#      source tarball (git archive of the tag, prefix `Themis-X.Y.Z/` matching
+#      the codeload layout). The AUR source build pins its checksum to this
+#      sidecar; the codeload archive it replaces has no published hash.
+#   4. Cargo.lock committed in the tagged tree (the AUR source build is --locked).
+#   5. LICENSE present in the tagged tree (themis-bin fetches it from the tag).
+#   6. The `themis completions {bash,zsh,fish}` subcommand (every package builds
 #      completions by running the binary; guarded by tests/integration_test.rs).
 # `make release` / `make tag-current` run `make release-contract`, which checks the
 # locally-verifiable parts (Cargo.lock tracked, LICENSE present) before tagging.
@@ -159,13 +164,30 @@ jobs:
     needs: [verify, build, publish-crate]
     runs-on: ubuntu-latest
     steps:
+      # git archive (below) needs the tag's tree. Checkout must precede the
+      # artifact download — its clean step would wipe an existing dist/.
+      - uses: actions/checkout@v7
       - uses: actions/download-artifact@v8
         with:
           path: dist
           merge-multiple: true
-      # Mint a build-provenance attestation for the platform tarballs (the glob
-      # deliberately skips the .tar.gz.sha256 sidecars — no value attesting
-      # checksum files). Consumers can verify with `gh attestation verify`.
+      # Source tarball + sidecar: GitHub's on-the-fly codeload archives are not
+      # guaranteed byte-stable, so source builds (the AUR themis package) anchor
+      # on this asset instead — its bytes freeze at upload and the sidecar is
+      # the published hash claim. The Themis-X.Y.Z/ prefix matches the codeload
+      # layout, so packagers only swap the source URL. (gzip determinism across
+      # git versions doesn't matter: the sidecar hashes the uploaded bytes.)
+      - name: Package source tarball + checksum
+        run: |
+          version="${{ needs.verify.outputs.version }}"
+          git archive --format=tar.gz --prefix="Themis-${version}/" \
+            -o "dist/themis-src-${version}.tar.gz" "v${version}"
+          cd dist
+          sha256sum "themis-src-${version}.tar.gz" \
+            > "themis-src-${version}.tar.gz.sha256"
+      # Mint a build-provenance attestation for the platform + source tarballs
+      # (the glob deliberately skips the .tar.gz.sha256 sidecars — no value
+      # attesting checksum files). Consumers can verify with `gh attestation verify`.
       - uses: actions/attest-build-provenance@v4
         with:
           subject-path: dist/themis-*.tar.gz
