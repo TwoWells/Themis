@@ -401,7 +401,7 @@ where
 
                 // 4. Reload
                 if let Some(cmd) = reload_cmd {
-                    self.command_executor.run_command(cmd)?;
+                    self.run_reload_cmd(cmd, context)?;
                 }
                 if let Some(signal) = reload_signal {
                     self.send_signal(signal, context)?;
@@ -424,7 +424,7 @@ where
                 )?;
 
                 if let Some(cmd) = reload_cmd {
-                    self.command_executor.run_command(cmd)?;
+                    self.run_reload_cmd(cmd, context)?;
                 }
             }
 
@@ -498,17 +498,66 @@ where
         Ok(())
     }
 
+    /// Run an app's `reload_cmd` after its theme has been written.
+    ///
+    /// The command is rendered as a template first, like every other
+    /// user-supplied string in a config, so it can reach the profile's
+    /// variables: `pkill -{{ foot_signal }} foot`.
+    ///
+    /// A failing reload is reported but does not fail the app. By the time it
+    /// runs the theme is already on disk, and the ordinary reason it fails is
+    /// that the app simply is not running -- `pkill` exits 1 when nothing
+    /// matches, which would otherwise turn "kitty is closed" into a failed
+    /// profile load. This is the same judgement [`Self::send_signal`] makes.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error only if the command *template* fails to render, which
+    /// is a fault in the config rather than in the running system.
+    fn run_reload_cmd(&self, cmd_template: &str, context: &HashMap<String, Value>) -> Result<()> {
+        let cmd = self
+            .template_renderer
+            .render(cmd_template, context)
+            .with_context(|| format!("Failed to render reload_cmd: {cmd_template}"))?;
+
+        if let Err(e) = self.command_executor.run_command(&cmd) {
+            let app_name = context
+                .get("app_name")
+                .and_then(|v| v.as_str())
+                .unwrap_or("unknown");
+            warn!(
+                "[{}] reload command did not succeed (the app may not be running): {}",
+                app_name, e
+            );
+        }
+        Ok(())
+    }
+
     /// Send a signal to a process by app name using pkill.
     /// Signal should be like "SIGUSR2", "SIGHUP", etc.
+    ///
+    /// The signal is rendered as a template, so a profile can choose it: foot,
+    /// for one, switches to its dark theme on SIGUSR1 and its light theme on
+    /// SIGUSR2, which is a property of the profile rather than of the app.
     fn send_signal(&self, signal: &str, context: &HashMap<String, Value>) -> Result<()> {
         let app_name = context
             .get("app_name")
             .and_then(|v| v.as_str())
             .context("app_name not found in context")?;
 
+        let rendered = self
+            .template_renderer
+            .render(signal, context)
+            .with_context(|| format!("Failed to render reload_signal: {signal}"))?;
+
         // Normalize signal: strip "SIG" prefix if present for pkill compatibility
-        let signal_name = signal.strip_prefix("SIG").unwrap_or(signal);
-        let cmd = format!("pkill -{signal_name} {app_name}");
+        let signal_name = rendered.strip_prefix("SIG").unwrap_or(&rendered);
+
+        // -x matches the process name exactly. Without it pkill reads the name
+        // as an unanchored regex, so enrolling `foot` would also signal every
+        // other process with "foot" in its name -- including, found the hard
+        // way, a helper script named foot-reload.sh signalling itself.
+        let cmd = format!("pkill -x -{signal_name} {app_name}");
         debug!("Sending signal: {}", cmd);
 
         // pkill returns non-zero if no process matched, which isn't necessarily an error

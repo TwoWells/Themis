@@ -10,7 +10,7 @@
 use crate::core::traits::{CommandExecutor, FileSystem, TemplateRenderer};
 use anyhow::{Result, bail};
 use serde_json::Value;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
@@ -101,11 +101,24 @@ impl TemplateRenderer for MockTemplateRenderer {
 pub struct MockCommandExecutor {
     pub executed: Arc<Mutex<Vec<String>>>,
     pub script_env: Arc<Mutex<HashMap<String, String>>>,
+    /// Commands that should report failure, for exercising the paths that cope
+    /// with a reload the system refuses (an app that is not running, say).
+    pub failing: Arc<Mutex<HashSet<String>>>,
+}
+
+impl MockCommandExecutor {
+    /// Make `command` fail when it is run, while still recording it.
+    pub fn fail_command(&self, command: &str) {
+        self.failing.lock().unwrap().insert(command.to_string());
+    }
 }
 
 impl CommandExecutor for MockCommandExecutor {
     fn run_command(&self, command: &str) -> Result<()> {
         self.executed.lock().unwrap().push(command.to_string());
+        if self.failing.lock().unwrap().contains(command) {
+            bail!("MockExec: command failed: {command}");
+        }
         Ok(())
     }
 

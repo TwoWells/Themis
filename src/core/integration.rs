@@ -14,10 +14,14 @@ pub enum Integration {
         input: String,
         /// Path the rendered output is written to (`~` is expanded).
         output: String,
-        /// Optional command to reload the application
+        /// Optional command to reload the application. Rendered as a
+        /// template, so it can use profile variables. A failing reload is
+        /// warned about, not treated as a failed integration -- the usual
+        /// cause is that the app is not running.
         #[serde(default)]
         reload_cmd: Option<String>,
-        /// Optional signal (e.g. `SIGUSR2`) sent to the app via `pkill` to reload.
+        /// Optional signal (e.g. `SIGUSR2`) sent to the app via `pkill -x` to
+        /// reload. Rendered as a template, so a profile can pick the signal.
         #[serde(default)]
         reload_signal: Option<String>,
     },
@@ -29,6 +33,7 @@ pub enum Integration {
         /// Target path the symlink is created at (`~` is expanded).
         target: String,
         /// Optional command to reload the application after linking.
+        /// Rendered as a template; a failing reload warns rather than fails.
         #[serde(default)]
         reload_cmd: Option<String>,
     },
