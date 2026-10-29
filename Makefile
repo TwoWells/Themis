@@ -9,11 +9,16 @@ CURRENT_VERSION := $(shell grep '^version = ' Cargo.toml | head -1 | sed 's/vers
 # Required cargo tools
 CARGO_TOOLS := cargo-deny cargo-machete cargo-nextest cargo-mutants
 
-# Hard per-process address-space cap (KiB) applied to test runs, so a runaway
-# allocation aborts that single process at the limit instead of exhausting
-# system RAM. Override with MEMLIMIT_KB=<kib>, or MEMLIMIT_KB=unlimited to
-# disable.
-MEMLIMIT_KB ?= 8388608
+# Memory ceiling for `make mutants`, the one target that builds and runs
+# arbitrary mutated code and so can plausibly allocate without bound.
+#
+# Enforced as a cgroup limit on memory actually used, not as `ulimit -v`: an
+# address-space cap counts what a process *reserves*, so an 8 GiB one killed
+# mold -- which reserves 8 GiB up front -- rather than any misbehaving test,
+# and `ulimit -v` is not meaningfully enforced on macOS anyway. Needs
+# systemd-run; without it the target still runs, just uncapped. Set
+# MUTANTS_MEMORY_MAX=unlimited to opt out.
+MUTANTS_MEMORY_MAX ?= 16G
 
 # Install paths (override with PREFIX=/usr for system install)
 PREFIX ?= /usr/local
@@ -38,8 +43,7 @@ lint:
 # Pass T= to filter, N= to repeat (--stress-count), I=1 to include ignored.
 # Note: nextest does not run doctests; the `test-doc` target covers those.
 test:
-	@if [ "$(MEMLIMIT_KB)" != unlimited ]; then ulimit -v $(MEMLIMIT_KB); fi; \
-	 cargo nextest run $(if $(I),--run-ignored all,) $(if $(N),--stress-count $(N),) $(if $(T),-E 'test($(T))',)
+	cargo nextest run $(if $(I),--run-ignored all,) $(if $(N),--stress-count $(N),) $(if $(T),-E 'test($(T))',)
 
 # Doctests are not run by nextest; run them separately so `check` keeps
 # doctest coverage.
@@ -68,7 +72,16 @@ machete:
 # `check`. Bare `cargo mutants` uses the default `cargo test` harness, so it also
 # exercises the doctests (nextest would skip them).
 mutants:
-	cargo mutants --timeout 60
+	@if [ "$(MUTANTS_MEMORY_MAX)" != unlimited ] && command -v systemd-run >/dev/null 2>&1; then \
+	   systemd-run --user --scope --quiet \
+	     -p MemoryMax=$(MUTANTS_MEMORY_MAX) -p MemorySwapMax=0 \
+	     cargo mutants --timeout 60; \
+	 else \
+	   if [ "$(MUTANTS_MEMORY_MAX)" != unlimited ]; then \
+	     echo "note: systemd-run unavailable, running cargo mutants without a memory cap"; \
+	   fi; \
+	   cargo mutants --timeout 60; \
+	 fi
 
 # 6. Meta-task for CI/Pre-commit
 # nextest (test) runs unit/integration tests; test-doc preserves doctest
