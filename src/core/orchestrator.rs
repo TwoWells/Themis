@@ -254,7 +254,7 @@ where
             .read_to_string(&config_path)
             .context("Failed to read themis.yaml")?;
 
-        serde_yaml::from_str(&content).context("Failed to parse themis.yaml")
+        serde_saphyr::from_str(&content).context("Failed to parse themis.yaml")
     }
 
     fn resolve_profile_vars(&self, profile_name: &str) -> Result<HashMap<String, Value>> {
@@ -330,7 +330,7 @@ where
             .read_to_string(&path)
             .with_context(|| format!("Profile not found: {name}"))?;
 
-        serde_yaml::from_str(&content).with_context(|| format!("Failed to parse profile: {name}"))
+        serde_saphyr::from_str(&content).with_context(|| format!("Failed to parse profile: {name}"))
     }
 
     /// Load a palette, searching user palettes first, then each system data
@@ -343,7 +343,7 @@ where
         if self.fs.exists(&user_path) {
             debug!("Loading user palette: {:?}", user_path);
             let content = self.fs.read_to_string(&user_path)?;
-            return serde_yaml::from_str(&content)
+            return serde_saphyr::from_str(&content)
                 .with_context(|| format!("Failed to parse user palette: {name}"));
         }
 
@@ -353,7 +353,7 @@ where
             if self.fs.exists(&system_path) {
                 debug!("Loading system palette: {:?}", system_path);
                 let content = self.fs.read_to_string(&system_path)?;
-                return serde_yaml::from_str(&content)
+                return serde_saphyr::from_str(&content)
                     .with_context(|| format!("Failed to parse system palette: {name}"));
             }
         }

@@ -320,6 +320,56 @@ mod tests {
     }
 
     #[test]
+    fn test_enroll_is_processed_in_yaml_order() {
+        let (fs, _cmd, orchestrator) = setup_with_executor();
+
+        // `enroll` is an IndexMap precisely so apps apply in the order the user
+        // wrote them -- a GTK theme before the bar that reads it, say. That
+        // depends on the YAML deserializer feeding entries in document order,
+        // so pin it here rather than trusting the backend not to change.
+        fs.add_file(
+            "/config/themis.yaml",
+            r##"
+            enroll:
+              zebra:
+                type: command
+                commands: ["true"]
+              aardvark:
+                type: command
+                commands: ["true"]
+              middle:
+                type: command
+                commands: ["true"]
+        "##,
+        );
+
+        fs.add_file(
+            "/config/profiles/test.yaml",
+            r##"
+            metadata:
+              name: test
+            vars: {}
+        "##,
+        );
+
+        let load_result = orchestrator.load_profile("test").unwrap();
+        assert!(
+            load_result.is_ok(),
+            "Apps failed: {:?}",
+            load_result.failures
+        );
+        assert_eq!(
+            load_result.succeeded,
+            vec![
+                "zebra".to_string(),
+                "aardvark".to_string(),
+                "middle".to_string()
+            ],
+            "enroll order must follow the document, not sort or hash"
+        );
+    }
+
+    #[test]
     fn test_reload_signal_sends_pkill() {
         let (fs, cmd, orchestrator) = setup_with_executor();
 
