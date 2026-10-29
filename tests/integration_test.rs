@@ -1469,6 +1469,198 @@ enroll:
 }
 
 #[test]
+fn test_doctor_follows_the_configured_output_name() {
+    let temp_dir = TempDir::new().unwrap();
+    let config_dir = temp_dir.path().join("config");
+
+    fs::create_dir_all(&config_dir).unwrap();
+
+    // The partial is named by the enrollment, not by Themis convention. doctor
+    // must look for *this* file rather than for a hardcoded `.themis.conf`.
+    fs::write(
+        config_dir.join("themis.yaml"),
+        r#"
+enroll:
+  kitty:
+    type: template
+    input: "~/.config/themis/templates/kitty.j2"
+    output: "~/.config/kitty/current-theme.conf"
+"#,
+    )
+    .unwrap();
+
+    let kitty_dir = temp_dir.path().join(".config/kitty");
+    fs::create_dir_all(&kitty_dir).unwrap();
+    fs::write(
+        kitty_dir.join("kitty.conf"),
+        "# Kitty config\ninclude current-theme.conf\n",
+    )
+    .unwrap();
+
+    let mut cmd = std::process::Command::new(env!("CARGO_BIN_EXE_themis"));
+    cmd.args(["--config", config_dir.to_str().unwrap(), "doctor"]);
+    common::isolate_env(&mut cmd, temp_dir.path());
+    let output = cmd.output().unwrap();
+
+    let combined = format!(
+        "{}{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(
+        output.status.success(),
+        "The include names the configured output, so doctor should pass: {}",
+        combined
+    );
+    assert!(
+        combined.contains("1 OK"),
+        "Should count kitty as OK: {}",
+        combined
+    );
+}
+
+#[test]
+fn test_doctor_accepts_a_config_themis_writes_outright() {
+    let temp_dir = TempDir::new().unwrap();
+    let config_dir = temp_dir.path().join("config");
+
+    fs::create_dir_all(&config_dir).unwrap();
+
+    // waybar's whole stylesheet is generated, so there is no partial to
+    // include and nothing for the user to add. Demanding an include here was
+    // a false positive.
+    fs::write(
+        config_dir.join("themis.yaml"),
+        r#"
+enroll:
+  waybar:
+    type: template
+    input: "~/.config/themis/templates/waybar-style.css.j2"
+    output: "~/.config/waybar/style.css"
+"#,
+    )
+    .unwrap();
+
+    let waybar_dir = temp_dir.path().join(".config/waybar");
+    fs::create_dir_all(&waybar_dir).unwrap();
+    fs::write(
+        waybar_dir.join("style.css"),
+        "@import \"colors-dark.css\";\n@import \"base.css\";\n",
+    )
+    .unwrap();
+
+    let mut cmd = std::process::Command::new(env!("CARGO_BIN_EXE_themis"));
+    cmd.args(["--config", config_dir.to_str().unwrap(), "doctor"]);
+    common::isolate_env(&mut cmd, temp_dir.path());
+    let output = cmd.output().unwrap();
+
+    let combined = format!(
+        "{}{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(
+        output.status.success(),
+        "An app whose config Themis generates should not be asked to include itself: {}",
+        combined
+    );
+    assert!(
+        combined.contains("1 OK"),
+        "Should count waybar as OK: {}",
+        combined
+    );
+}
+
+#[test]
+fn test_doctor_accepts_a_symlink_target_named_without_its_extension() {
+    let temp_dir = TempDir::new().unwrap();
+    let config_dir = temp_dir.path().join("config");
+
+    fs::create_dir_all(&config_dir).unwrap();
+
+    // rofi's `@theme` drops the .rasi, so the reference in config.rasi never
+    // literally contains the target's file name.
+    fs::write(
+        config_dir.join("themis.yaml"),
+        r#"
+enroll:
+  rofi:
+    type: symlink
+    source: "~/.config/rofi/{{ mode }}.rasi"
+    target: "~/.config/rofi/current.rasi"
+"#,
+    )
+    .unwrap();
+
+    let rofi_dir = temp_dir.path().join(".config/rofi");
+    fs::create_dir_all(&rofi_dir).unwrap();
+    fs::write(rofi_dir.join("config.rasi"), "@theme \"current\"\n").unwrap();
+
+    let mut cmd = std::process::Command::new(env!("CARGO_BIN_EXE_themis"));
+    cmd.args(["--config", config_dir.to_str().unwrap(), "doctor"]);
+    common::isolate_env(&mut cmd, temp_dir.path());
+    let output = cmd.output().unwrap();
+
+    let combined = format!(
+        "{}{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(
+        output.status.success(),
+        "rofi names its theme without the extension, so doctor should pass: {}",
+        combined
+    );
+    assert!(
+        combined.contains("1 OK"),
+        "Should count rofi as OK: {}",
+        combined
+    );
+}
+
+#[test]
+fn test_doctor_suggests_the_configured_file_name() {
+    let temp_dir = TempDir::new().unwrap();
+    let config_dir = temp_dir.path().join("config");
+
+    fs::create_dir_all(&config_dir).unwrap();
+
+    fs::write(
+        config_dir.join("themis.yaml"),
+        r#"
+enroll:
+  kitty:
+    type: template
+    input: "~/.config/themis/templates/kitty.j2"
+    output: "~/.config/kitty/current-theme.conf"
+"#,
+    )
+    .unwrap();
+
+    let kitty_dir = temp_dir.path().join(".config/kitty");
+    fs::create_dir_all(&kitty_dir).unwrap();
+    fs::write(kitty_dir.join("kitty.conf"), "font_size 12\n").unwrap();
+
+    let mut cmd = std::process::Command::new(env!("CARGO_BIN_EXE_themis"));
+    cmd.args(["--config", config_dir.to_str().unwrap(), "doctor"]);
+    common::isolate_env(&mut cmd, temp_dir.path());
+    let output = cmd.output().unwrap();
+
+    assert!(!output.status.success(), "Should fail when include missing");
+    let combined = format!(
+        "{}{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    // The advice has to name the file the user actually configured.
+    assert!(
+        combined.contains("include current-theme.conf"),
+        "Fix should name the configured output: {}",
+        combined
+    );
+}
+
+#[test]
 fn test_status_shows_no_state_initially() {
     let temp_dir = TempDir::new().unwrap();
 
