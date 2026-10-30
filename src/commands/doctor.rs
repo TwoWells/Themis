@@ -107,7 +107,7 @@ pub fn run(config_dir: &Path) -> Result<DoctorResult> {
     }
 
     let content = fs::read_to_string(&config_file)?;
-    let config: Config = serde_yaml::from_str(&content)?;
+    let config: Config = serde_saphyr::from_str(&content)?;
 
     // Check each enrolled app
     for (app_name, _integration) in &config.enroll {

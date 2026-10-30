@@ -1125,6 +1125,119 @@ fn test_verify_cli_exits_zero_on_valid_config() {
 }
 
 #[test]
+fn test_verify_explains_an_unparseable_config() {
+    // An unparseable themis.yaml stops the remaining checks, so verify returns
+    // early -- and used to return before the block that prints what it found,
+    // leaving the user with a bare non-zero exit and no message.
+    let temp_dir = TempDir::new().unwrap();
+    let config_dir = temp_dir.path().join("config");
+    fs::create_dir_all(&config_dir).unwrap();
+
+    fs::write(
+        config_dir.join("themis.yaml"),
+        "enroll:\n  kitty:\n  type: template\n   input: x\n",
+    )
+    .unwrap();
+
+    let mut cmd = std::process::Command::new(env!("CARGO_BIN_EXE_themis"));
+    cmd.args(["--config", config_dir.to_str().unwrap(), "verify"]);
+    common::isolate_env(&mut cmd, temp_dir.path());
+    let output = cmd.output().unwrap();
+
+    assert!(
+        !output.status.success(),
+        "verify should exit non-zero on an unparseable config"
+    );
+    let combined = format!(
+        "{}{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(
+        combined.contains("Invalid config file"),
+        "verify should say the config is invalid, not just exit: {}",
+        combined
+    );
+    // The parser's own complaint has to survive the anyhow context, otherwise
+    // the user is told "failed to parse" and nothing about where.
+    assert!(
+        combined.contains("line"),
+        "the message should locate the problem: {}",
+        combined
+    );
+}
+
+#[test]
+fn test_verify_explains_a_missing_config_file() {
+    // The same early-return path, reached before any parsing.
+    let temp_dir = TempDir::new().unwrap();
+    let config_dir = temp_dir.path().join("config");
+    fs::create_dir_all(&config_dir).unwrap();
+
+    let mut cmd = std::process::Command::new(env!("CARGO_BIN_EXE_themis"));
+    cmd.args(["--config", config_dir.to_str().unwrap(), "verify"]);
+    common::isolate_env(&mut cmd, temp_dir.path());
+    let output = cmd.output().unwrap();
+
+    assert!(!output.status.success(), "verify should exit non-zero");
+    let combined = format!(
+        "{}{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(
+        combined.contains("Config file not found"),
+        "verify should name the missing file: {}",
+        combined
+    );
+}
+
+#[test]
+fn test_duplicate_enroll_keys_are_rejected() {
+    // serde_yaml silently kept the last of a duplicated key; the YAML parser
+    // that replaced it refuses, which is the better default for a config file
+    // -- two entries for one app is always a mistake. Pin the behaviour so a
+    // future backend change cannot quietly go back to last-one-wins.
+    let temp_dir = TempDir::new().unwrap();
+    let config_dir = temp_dir.path().join("config");
+    fs::create_dir_all(&config_dir).unwrap();
+
+    fs::write(
+        config_dir.join("themis.yaml"),
+        r#"
+enroll:
+  kitty:
+    type: command
+    commands: ["first"]
+  kitty:
+    type: command
+    commands: ["second"]
+"#,
+    )
+    .unwrap();
+
+    let mut cmd = std::process::Command::new(env!("CARGO_BIN_EXE_themis"));
+    cmd.args(["--config", config_dir.to_str().unwrap(), "verify"]);
+    common::isolate_env(&mut cmd, temp_dir.path());
+    let output = cmd.output().unwrap();
+
+    assert!(
+        !output.status.success(),
+        "a duplicated enroll key should not be accepted"
+    );
+    let combined = format!(
+        "{}{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(
+        combined.contains("duplicate"),
+        "the message should name the duplication: {}",
+        combined
+    );
+}
+
+#[test]
 fn test_doctor_detects_missing_include() {
     let temp_dir = TempDir::new().unwrap();
     let config_dir = temp_dir.path().join("config");

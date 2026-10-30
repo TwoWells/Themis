@@ -28,7 +28,7 @@
 //!     font_size: 14
 //! "#;
 //!
-//! let config: Config = serde_yaml::from_str(yaml).unwrap();
+//! let config: Config = serde_saphyr::from_str(yaml).unwrap();
 //! assert_eq!(config.enroll.len(), 2);
 //!
 //! // App-specific overrides take precedence over global
@@ -86,7 +86,7 @@ impl Config {
     ///     size: 10
     /// "#;
     ///
-    /// let config: Config = serde_yaml::from_str(yaml).unwrap();
+    /// let config: Config = serde_saphyr::from_str(yaml).unwrap();
     ///
     /// // waybar gets global font but its own size
     /// let waybar = config.get_overrides_for("waybar");

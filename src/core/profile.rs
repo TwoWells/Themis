@@ -19,7 +19,7 @@
 //!   accent: '#88c0d0'
 //! ";
 //!
-//! let profile: Profile = serde_yaml::from_str(yaml).unwrap();
+//! let profile: Profile = serde_saphyr::from_str(yaml).unwrap();
 //! assert_eq!(profile.vars.get("bg").unwrap(), "#2e3440");
 //! ```
 //!
@@ -37,7 +37,7 @@
 //!   accent: '#b48ead'
 //! ";
 //!
-//! let profile: Profile = serde_yaml::from_str(yaml).unwrap();
+//! let profile: Profile = serde_saphyr::from_str(yaml).unwrap();
 //! assert_eq!(profile.include, Some("nord".to_string()));
 //! ```
 

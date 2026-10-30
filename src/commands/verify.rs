@@ -54,6 +54,18 @@ impl VerifyResult {
 /// configuration tree; ordinary validation problems (missing files, invalid
 /// YAML) are recorded in the returned result instead.
 pub fn run(config_dir: &Path, system_dirs: &[PathBuf]) -> Result<VerifyResult> {
+    let result = check(config_dir, system_dirs);
+    report(&result);
+    Ok(result)
+}
+
+/// Run every check, collecting problems into the result.
+///
+/// Several checks are fatal enough to stop the rest (an unparseable
+/// themis.yaml leaves nothing to verify), so this returns early in places --
+/// which is exactly why reporting lives in the caller rather than at the end
+/// of this function.
+fn check(config_dir: &Path, system_dirs: &[PathBuf]) -> VerifyResult {
     let mut result = VerifyResult::new();
 
     info!("Verifying Themis configuration...");
@@ -65,17 +77,19 @@ pub fn run(config_dir: &Path, system_dirs: &[PathBuf]) -> Result<VerifyResult> {
             "Config file not found: {}\nRun 'themis init' to create it.",
             config_file.display()
         ));
-        return Ok(result);
+        return result;
     }
 
     let config: Config = match std::fs::read_to_string(&config_file)
         .context("Failed to read themis.yaml")
-        .and_then(|content| serde_yaml::from_str(&content).context("Failed to parse themis.yaml"))
+        .and_then(|content| serde_saphyr::from_str(&content).context("Failed to parse themis.yaml"))
     {
         Ok(c) => c,
         Err(e) => {
-            result.error(format!("Invalid config file: {e}"));
-            return Ok(result);
+            // `{e:#}` so the parser's own complaint (line, column, what it
+            // found) travels with the context, not just "failed to parse".
+            result.error(format!("Invalid config file: {e:#}"));
+            return result;
         }
     };
 
@@ -100,7 +114,11 @@ pub fn run(config_dir: &Path, system_dirs: &[PathBuf]) -> Result<VerifyResult> {
         verify_palettes(&palettes_dir, config_dir, system_dirs, &mut result);
     }
 
-    // Print summary
+    result
+}
+
+/// Print what the checks found.
+fn report(result: &VerifyResult) {
     info!("");
     if result.is_ok() {
         if result.warnings.is_empty() {
@@ -120,8 +138,6 @@ pub fn run(config_dir: &Path, system_dirs: &[PathBuf]) -> Result<VerifyResult> {
             error!("{}", e);
         }
     }
-
-    Ok(result)
 }
 
 fn verify_integration(
@@ -208,7 +224,7 @@ fn verify_profiles(
                 }
             };
 
-            let profile: Profile = match serde_yaml::from_str(&content) {
+            let profile: Profile = match serde_saphyr::from_str(&content) {
                 Ok(p) => p,
                 Err(e) => {
                     result.error(format!("Profile '{name}' is invalid YAML: {e}"));
@@ -255,7 +271,7 @@ fn verify_palettes(
                 }
             };
 
-            let palette: Profile = match serde_yaml::from_str(&content) {
+            let palette: Profile = match serde_saphyr::from_str(&content) {
                 Ok(p) => p,
                 Err(e) => {
                     result.error(format!("Palette '{name}' is invalid YAML: {e}"));

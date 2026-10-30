@@ -32,6 +32,12 @@ over system palettes; the first match in the search list wins.
 
 [XDG Base Directory]: https://specifications.freedesktop.org/basedir-spec/latest/
 
+## YAML dialect
+
+Themis parses YAML 1.2 and **rejects a duplicated mapping key** rather than silently keeping the
+last one — two `enroll` entries for the same app, or a variable defined twice in one profile, is
+reported with the line it occurs on. Parse errors name a line and column.
+
 ## themis.yaml
 
 The main configuration file defines enrolled applications and overrides.
