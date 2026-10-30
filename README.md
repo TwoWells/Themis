@@ -203,8 +203,26 @@ kitty:
   input: "~/.config/themis/templates/kitty.j2"
   output: "~/.config/kitty/.themis.conf"
   reload_cmd: "kill -SIGUSR1 $(pgrep kitty)" # optional
-  reload_signal: SIGUSR1 # optional (uses pkill)
+  reload_signal: SIGUSR1 # optional (uses pkill -x)
 ```
+
+`reload_cmd` runs through a shell, and `reload_cmd` and `reload_signal` are both rendered as
+templates, so a profile can decide how an app reloads:
+
+```yaml
+foot:
+  type: template
+  input: "~/.config/themis/templates/foot.j2"
+  output: "~/.config/foot/current-theme.ini"
+  # foot selects its dark theme on SIGUSR1 and its light theme on SIGUSR2, so
+  # the signal belongs to the profile rather than to the enrollment.
+  reload_signal: "{{ foot_signal }}"
+```
+
+A reload that fails is reported as a warning and does **not** fail the app: the theme has already
+been written by then, and the usual reason a reload fails is that the app is not currently running
+(`pkill` exits non-zero when nothing matches). A `reload_cmd` whose _template_ is malformed is a
+different matter and does fail the app, since that is a fault in the config.
 
 ### Symlink
 
@@ -283,6 +301,15 @@ Example for kitty (`~/.config/kitty/kitty.conf`):
 ```
 include .themis.conf
 ```
+
+`doctor` takes the file to look for from the app's own enrollment, so whatever you set as `output`
+(or a symlink's `target`) is what it expects to find referenced — it does not assume a particular
+name. Two cases it accounts for:
+
+- an app that names an include without its extension, such as rofi's `@theme "current"` for a
+  `current.rasi` target;
+- an app whose main config Themis generates outright rather than as a partial beside it, which has
+  nothing to include and is reported as OK.
 
 ## Documentation
 

@@ -370,6 +370,219 @@ mod tests {
     }
 
     #[test]
+    fn test_reload_cmd_is_rendered_with_profile_vars() {
+        let (fs, cmd, orchestrator) = setup_with_executor();
+
+        fs.add_file(
+            "/config/themis.yaml",
+            r##"
+            enroll:
+              foot:
+                type: template
+                input: /config/template.j2
+                output: /config/out.conf
+                reload_cmd: "pkill -{{ foot_signal }} foot"
+        "##,
+        );
+
+        fs.add_file(
+            "/config/profiles/test.yaml",
+            r##"
+            metadata:
+              name: test
+            vars:
+              foot_signal: USR2
+        "##,
+        );
+
+        fs.add_file("/config/template.j2", "test");
+
+        let load_result = orchestrator.load_profile("test").unwrap();
+        assert!(
+            load_result.is_ok(),
+            "Apps failed: {:?}",
+            load_result.failures
+        );
+
+        let executed = cmd.executed.lock().unwrap();
+        assert!(
+            executed.iter().any(|c| c == "pkill -USR2 foot"),
+            "reload_cmd should be rendered with profile vars, got: {:?}",
+            *executed
+        );
+    }
+
+    #[test]
+    fn test_symlink_reload_cmd_is_rendered() {
+        let (fs, cmd, orchestrator) = setup_with_executor();
+
+        fs.add_file(
+            "/config/themis.yaml",
+            r##"
+            enroll:
+              rofi:
+                type: symlink
+                source: /config/{{ mode }}.rasi
+                target: /config/current.rasi
+                reload_cmd: "notify {{ mode }}"
+        "##,
+        );
+
+        fs.add_file(
+            "/config/profiles/test.yaml",
+            r##"
+            metadata:
+              name: test
+            vars:
+              mode: light
+        "##,
+        );
+
+        let load_result = orchestrator.load_profile("test").unwrap();
+        assert!(
+            load_result.is_ok(),
+            "Apps failed: {:?}",
+            load_result.failures
+        );
+
+        let executed = cmd.executed.lock().unwrap();
+        assert!(
+            executed.iter().any(|c| c == "notify light"),
+            "symlink reload_cmd should be rendered, got: {:?}",
+            *executed
+        );
+    }
+
+    #[test]
+    fn test_failing_reload_cmd_does_not_fail_the_app() {
+        let (fs, cmd, orchestrator) = setup_with_executor();
+
+        // The theme is written before the reload runs, and `pkill` exits 1
+        // whenever the app simply is not running. That must not be reported as
+        // a failed integration.
+        cmd.fail_command("pkill -USR1 kitty");
+
+        fs.add_file(
+            "/config/themis.yaml",
+            r##"
+            enroll:
+              kitty:
+                type: template
+                input: /config/template.j2
+                output: /config/out.conf
+                reload_cmd: "pkill -USR1 kitty"
+        "##,
+        );
+
+        fs.add_file(
+            "/config/profiles/test.yaml",
+            r##"
+            metadata:
+              name: test
+            vars: {}
+        "##,
+        );
+
+        fs.add_file("/config/template.j2", "color=black");
+
+        let load_result = orchestrator.load_profile("test").unwrap();
+        assert!(
+            load_result.is_ok(),
+            "A failed reload must not fail the app: {:?}",
+            load_result.failures
+        );
+        assert_eq!(load_result.success_count(), 1);
+
+        // ...and the theme itself still landed.
+        assert_eq!(
+            fs.read_to_string(std::path::Path::new("/config/out.conf"))
+                .unwrap(),
+            "color=black"
+        );
+    }
+
+    #[test]
+    fn test_failing_symlink_reload_cmd_does_not_fail_the_app() {
+        let (fs, cmd, orchestrator) = setup_with_executor();
+
+        cmd.fail_command("reload-rofi");
+
+        fs.add_file(
+            "/config/themis.yaml",
+            r##"
+            enroll:
+              rofi:
+                type: symlink
+                source: /config/dark.rasi
+                target: /config/current.rasi
+                reload_cmd: "reload-rofi"
+        "##,
+        );
+
+        fs.add_file(
+            "/config/profiles/test.yaml",
+            r##"
+            metadata:
+              name: test
+            vars: {}
+        "##,
+        );
+
+        let load_result = orchestrator.load_profile("test").unwrap();
+        assert!(
+            load_result.is_ok(),
+            "A failed reload must not fail the app: {:?}",
+            load_result.failures
+        );
+        assert_eq!(load_result.success_count(), 1);
+    }
+
+    #[test]
+    fn test_reload_signal_is_rendered_with_profile_vars() {
+        let (fs, cmd, orchestrator) = setup_with_executor();
+
+        // foot picks its theme by signal -- USR1 dark, USR2 light -- so the
+        // signal belongs to the profile, not to the enrollment.
+        fs.add_file(
+            "/config/themis.yaml",
+            r##"
+            enroll:
+              foot:
+                type: template
+                input: /config/template.j2
+                output: /config/out.conf
+                reload_signal: "{{ foot_signal }}"
+        "##,
+        );
+
+        fs.add_file(
+            "/config/profiles/test.yaml",
+            r##"
+            metadata:
+              name: test
+            vars:
+              foot_signal: SIGUSR2
+        "##,
+        );
+
+        fs.add_file("/config/template.j2", "test");
+
+        let load_result = orchestrator.load_profile("test").unwrap();
+        assert!(
+            load_result.is_ok(),
+            "Apps failed: {:?}",
+            load_result.failures
+        );
+
+        let executed = cmd.executed.lock().unwrap();
+        assert!(
+            executed.iter().any(|c| c == "pkill -x -USR2 foot"),
+            "reload_signal should render and drop the SIG prefix, got: {:?}",
+            *executed
+        );
+    }
+
+    #[test]
     fn test_reload_signal_sends_pkill() {
         let (fs, cmd, orchestrator) = setup_with_executor();
 
@@ -406,7 +619,7 @@ mod tests {
 
         let executed = cmd.executed.lock().unwrap();
         assert!(
-            executed.iter().any(|c| c == "pkill -USR2 waybar"),
+            executed.iter().any(|c| c == "pkill -x -USR2 waybar"),
             "Expected pkill command, got: {:?}",
             *executed
         );
@@ -448,7 +661,7 @@ mod tests {
 
         let executed = cmd.executed.lock().unwrap();
         assert!(
-            executed.iter().any(|c| c == "pkill -USR1 kitty"),
+            executed.iter().any(|c| c == "pkill -x -USR1 kitty"),
             "Expected pkill command, got: {:?}",
             *executed
         );

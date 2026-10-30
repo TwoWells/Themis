@@ -8,57 +8,77 @@ use std::path::Path;
 use tracing::{error, info, warn};
 
 use crate::core::config::Config;
+use crate::core::integration::Integration;
 
-/// Known app configurations and what to check for
+/// What Themis knows about one app's own config file: where it lives, and how
+/// that app's syntax references an included file.
+///
+/// Deliberately *not* recorded here: which file to look for. That comes from
+/// the app's enrollment, so an app whose template writes `current-theme.conf`
+/// is checked for `current-theme.conf` rather than for whatever name this
+/// table would otherwise have guessed.
 struct AppCheck {
     /// App name (matches enrollment key)
     name: &'static str,
     /// Path to config file to check (with ~ expanded)
     config_path: &'static str,
-    /// Pattern to look for in the config file
-    pattern: &'static str,
-    /// What to add if pattern is missing
-    fix: &'static str,
+    /// How this app spells an include, with `{}` standing in for the generated
+    /// file. Used to word the suggested fix.
+    include_fmt: &'static str,
+    /// Set when the app names an include without its extension, the way rofi
+    /// writes `@theme "current"` for `current.rasi`.
+    drops_extension: bool,
 }
 
 const APP_CHECKS: &[AppCheck] = &[
     AppCheck {
         name: "kitty",
         config_path: "~/.config/kitty/kitty.conf",
-        pattern: "include .themis.conf",
-        fix: "Add this line to ~/.config/kitty/kitty.conf:\n  include .themis.conf",
+        include_fmt: "include {}",
+        drops_extension: false,
     },
     AppCheck {
         name: "waybar",
         config_path: "~/.config/waybar/style.css",
-        pattern: "@import \"colors.css\"",
-        fix: "Add this line to ~/.config/waybar/style.css:\n  @import \"colors.css\";",
+        include_fmt: "@import \"{}\";",
+        drops_extension: false,
     },
     AppCheck {
         name: "polybar",
         config_path: "~/.config/polybar/config.ini",
-        pattern: "include-file",
-        fix: "Add this line to ~/.config/polybar/config.ini:\n  include-file = ~/.config/polybar/colors.ini",
+        include_fmt: "include-file = ~/.config/polybar/{}",
+        drops_extension: false,
     },
     AppCheck {
         name: "rofi",
         config_path: "~/.config/rofi/config.rasi",
-        pattern: "@theme \"themis\"",
-        fix: "Add this line to ~/.config/rofi/config.rasi:\n  @theme \"themis\";",
+        include_fmt: "@theme \"{}\"",
+        drops_extension: true,
     },
     AppCheck {
         name: "foot",
         config_path: "~/.config/foot/foot.ini",
-        pattern: "include=",
-        fix: "Add this line to ~/.config/foot/foot.ini:\n  include=~/.config/foot/themis.ini",
+        include_fmt: "include=~/.config/foot/{}",
+        drops_extension: false,
     },
     AppCheck {
         name: "alacritty",
         config_path: "~/.config/alacritty/alacritty.toml",
-        pattern: "import",
-        fix: "Add this to ~/.config/alacritty/alacritty.toml:\n  import = [\"~/.config/alacritty/themis.toml\"]",
+        include_fmt: "import = [\"~/.config/alacritty/{}\"]",
+        drops_extension: false,
     },
 ];
+
+/// The file Themis generates for an app, as its enrollment declares it.
+///
+/// Commands and scripts produce nothing for the app to include.
+const fn generated_path(integration: &Integration) -> Option<&String> {
+    match integration {
+        Integration::Template { output, .. } => Some(output),
+        Integration::Symlink { target, .. } => Some(target),
+        Integration::Command { .. } | Integration::Script { .. } => None,
+    }
+}
 
 /// Outcome of a `doctor` run: which app configs are missing their include.
 pub struct DoctorResult {
@@ -110,8 +130,8 @@ pub fn run(config_dir: &Path) -> Result<DoctorResult> {
     let config: Config = serde_saphyr::from_str(&content)?;
 
     // Check each enrolled app
-    for (app_name, _integration) in &config.enroll {
-        check_app(app_name, &mut result);
+    for (app_name, integration) in &config.enroll {
+        check_app(app_name, integration, &mut result);
     }
 
     // Print summary
@@ -139,7 +159,7 @@ pub fn run(config_dir: &Path) -> Result<DoctorResult> {
     Ok(result)
 }
 
-fn check_app(app_name: &str, result: &mut DoctorResult) {
+fn check_app(app_name: &str, integration: &Integration, result: &mut DoctorResult) {
     // Find the check for this app
     let check = APP_CHECKS.iter().find(|c| c.name == app_name);
 
@@ -150,8 +170,30 @@ fn check_app(app_name: &str, result: &mut DoctorResult) {
         return;
     };
 
+    // Nothing is generated for this app, so there is nothing to include.
+    let Some(generated) = generated_path(integration) else {
+        info!("[{}] No config check needed", app_name);
+        result.skipped_count += 1;
+        return;
+    };
+
+    let generated = shellexpand::tilde(generated.as_str());
+    let generated = Path::new(generated.as_ref());
+
     let config_path = shellexpand::tilde(check.config_path);
     let path = Path::new(config_path.as_ref());
+
+    // Themis writes this app's config outright rather than a partial beside
+    // it -- waybar's style.css, for one -- so asking it to include itself
+    // would be nonsense.
+    if generated == path {
+        info!(
+            "[{}] OK - Themis generates {} itself",
+            app_name, check.config_path
+        );
+        result.ok_count += 1;
+        return;
+    }
 
     if !path.exists() {
         warn!(
@@ -165,15 +207,38 @@ fn check_app(app_name: &str, result: &mut DoctorResult) {
         return;
     }
 
-    // Read the config file and check for pattern
+    let Some(file_name) = generated.file_name().and_then(|n| n.to_str()) else {
+        result.issues.push(format!(
+            "[{}] Enrolled output has no file name: {}",
+            app_name,
+            generated.display()
+        ));
+        return;
+    };
+
+    // The reference the app is expected to carry. Where an app drops the
+    // extension, accept either spelling: configs often give a full path.
+    let stem = generated.file_stem().and_then(|s| s.to_str());
+    let reference = if check.drops_extension {
+        stem.unwrap_or(file_name)
+    } else {
+        file_name
+    };
+
+    // Read the config file and check that it points at what Themis writes
     match fs::read_to_string(path) {
         Ok(content) => {
-            if content.contains(check.pattern) {
-                info!("[{}] OK - found '{}' in config", app_name, check.pattern);
+            if content.contains(reference) || content.contains(file_name) {
+                info!("[{}] OK - found '{}' in config", app_name, reference);
                 result.ok_count += 1;
             } else {
                 warn!("[{}] Missing include pattern", app_name);
-                result.issues.push(format!("[{}] {}", app_name, check.fix));
+                result.issues.push(format!(
+                    "[{}] Add this line to {}:\n  {}",
+                    app_name,
+                    check.config_path,
+                    check.include_fmt.replace("{}", reference)
+                ));
             }
         }
         Err(e) => {
